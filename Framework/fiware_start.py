@@ -1,4 +1,8 @@
 import os
+import subprocess
+#Check if context-broker image exist
+if "context-broker" not in os.popen("docker images").read():
+    subprocess.Popen('sudo docker build -t context-broker .',shell=True).wait()
 #Check if network exist
 if "fiware_default" not in os.popen("docker network ls").read():
     print(os.popen("docker network create fiware_default").read())
