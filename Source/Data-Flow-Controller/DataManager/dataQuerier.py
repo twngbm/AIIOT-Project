@@ -4,7 +4,70 @@ import time
 import json
 import logging
 from datetime import datetime
+import select
+from DataManager import dataPreprocesser
 
+
+def dataStore(data:dict):
+    data_is_ready=False
+    __PATH__=os.path.dirname(os.path.abspath(__file__))
+    with open(__PATH__+"/../Data/IoT/"+data["fiware_service"]+"/iotagent-setting.json") as f:
+        setting=json.load(f)
+    IOTA=setting["iotagent_setting"]["IOT_AGENT"]
+    r=requests.get(IOTA+"/iot/devices",headers={"fiware-service":data["fiware_service"],'fiware-servicepath': "/"})
+    r=r.json()["devices"]
+    for device in r:
+        if data["entity_id"]==device["entity_name"]:
+            device_id=device["device_id"]
+            attrs=device["static_attributes"]
+    static_attributes={}
+    for attr in attrs:
+        static_attributes[attr["name"]]=attr["value"]
+    __DEVICE_PATH__=__PATH__+"/../Data/IoT/"+data["fiware_service"]+"/"+device_id
+    checkResult,data=dataPreprocesser.dataPreprocesser(__DEVICE_PATH__,data,static_attributes)
+    if 2 in checkResult:
+        pass
+    else:
+        count=dataCache(__DEVICE_PATH__,data)
+        data_is_ready=dataReady(count,static_attributes)
+    if data_is_ready:
+        #TODO
+        #TODO
+        #TODO
+        #TODO
+        #TODO
+        #TODO
+        #Tell model manager to start train.
+        #Set Flag to stop local caching.
+        pass
+    return checkResult
+def dataCache(__DEVICE_PATH__,data):
+    __LOCALDATA__=__DEVICE_PATH__+"/localdata.tmp"
+    __COUNTER__=__DEVICE_PATH__+"/counter.tmp"
+    __LOCALNEWEST__=__DEVICE_PATH__+"/localnewest.tmp"
+    value=data["value"]
+    timestamp=data["timestamp"]
+    with open(__COUNTER__,"r") as c:
+        count=int(c.read())
+    count+=1
+    with open(__COUNTER__,"w") as c:
+        c.write(str(count))
+    with open(__LOCALNEWEST__,"w") as ln:
+        ln.write(str(value+","+str(timestamp)))
+    with open(__LOCALDATA__,"a") as ld:
+        ld.write(str(value+","+str(timestamp)+"\n"))
+    return count
+
+def dataReady(count,static_attributes):
+    targetTime=float(static_attributes["targetTime"])
+    timeResolution=float(static_attributes["timeResolution"])
+    targetCount=targetTime/timeResolution
+    print(targetCount,count)
+    if targetCount>count:
+        return False
+    else:
+        return True
+"""
 class dataQuerier():
     def __init__(self,_id,fiware_service,received_mode):
         self.fiware_service=fiware_service
@@ -57,3 +120,11 @@ class dataQuerier():
                 
     def restartCheck(self):
         pass
+if __name__=="__main__":
+    __PATH__=os.path.dirname(os.path.abspath(__file__))
+    __DATAPIPEPATH__=__PATH__+"/../Data.pipe"
+    datapipe=os.open(__DATAPIPEPATH__,os.O_RDONLY|os.O_NONBLOCK)
+    epoll=select.epoll()
+    epoll.register(datapipe,select.POLLIN)
+    
+"""

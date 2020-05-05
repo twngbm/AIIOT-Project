@@ -20,6 +20,8 @@ def sensorRegister(setting):
     sensor_name=setting["sensor_info"]["sensorName"]
     field_name=setting["sensor_info"]["fieldName"]
     time_resolution=setting["sensor_info"]["timeResolution"]
+    target_time=setting["sensor_info"]["targetTime"]
+    target_model=setting["sensor_info"]["targetModle"]
     sensor_type=setting["sensor_info"]["sensorType"]
     measurement=setting["sensor_info"]["measurement"]
     refRoomID=setting["sensor_info"]["refRoom"]
@@ -33,6 +35,8 @@ def sensorRegister(setting):
                        {"name":"fieldName", "type": "Text", "value": field_name},
                        {"name":"refRoom", "type": "Relationship", "value": refRoomID},
                        {"name":"timeResolution", "type": "Integer", "value": time_resolution},
+                       {"name":"targetTime", "type": "Integer", "value": target_time},
+                       {"name":"targetModel", "type": "Text", "value": target_model},
                        {"name":"sensorType", "type": "Text", "value": sensor_type},   
                        {"name":"unit", "type": "Text", "value": unit},
                        {"name":"predictionValue", "type": "Float", "value": "None"},
@@ -58,9 +62,12 @@ def sensorRegister(setting):
     if r.status_code==201:
         os.mkdir("Data/IoT/"+fiware_service+"/"+device_id)
         with open("./Data/IoT/"+fiware_service+"/"+device_id+"/localdata.tmp","w+") as f:
+            f.close()
+        with open("./Data/IoT/"+fiware_service+"/"+device_id+"/counter.tmp","w+") as f:
             f.write("0")
             f.close()
-            
+        with open("./Data/IoT/"+fiware_service+"/"+device_id+"/localnewest.tmp","w+") as f:
+            f.close()
             
             
     return r.status_code

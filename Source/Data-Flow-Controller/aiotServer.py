@@ -8,6 +8,7 @@ from SensorManager import sensorRegister,sensorManager,sensorCheck
 from DataManager import dataQuerier
 import requests
 import time
+
 #Activity Portal
 PORT=9250
 TIMEZONE=+8
@@ -57,6 +58,7 @@ class Handler(BaseHTTPRequestHandler):
         
         if str(self.path)=="/notify":
             logging.info("New notification come from orion.")
+            
             try:
                 entity_id=post_data_dict["data"][0]["id"]
                 fiware_service=self.headers["Fiware-Service"]
@@ -66,19 +68,40 @@ class Handler(BaseHTTPRequestHandler):
                 self._set_response(404)
                 self.wfile.write("{'Status':'Wrong Formate.'}".encode('utf-8'))
                 return 404
+            __PATH__=os.path.dirname(os.path.abspath(__file__))
+            if not os.path.isfile(__PATH__+"/Data/global-setting-entityID.json"):
+                logging.warning("Initial FIWARE First")
+                self._set_response(404)
+                self.wfile.write("{'Status':'Initial FIWARE First'}".encode('utf-8'))
+                return 404
+            if not os.path.isfile(__PATH__+"/Data/IoT/"+fiware_service+"/iotagent-setting.json"):
+                logging.warning("Initial Iotagent Named '"+fiware_service+"' First")
+                self._set_response(404)
+                meaasge="{'Status':'Initial Iotagent Named '"+fiware_service+"' First'}"
+                self.wfile.write(meaasge.encode('utf-8'))
+                return 404
             if count==" " and timestamp=="1970-01-01T00:00:00.00Z":
                 self._set_response(200)
                 return 200
-            print(count)
-            print(timestamp)
-            DQ=dataQuerier.dataQuerier(entity_id,fiware_service,received_mode=True)
-            if DQ.swarm_finished:
-                #Do Anomaly Prediction
-                pass
+
+            Data={"entity_id":entity_id,"fiware_service":fiware_service,"count":count,"timestamp":timestamp}
+            result=dataQuerier.dataStore(Data)
+            if result==[]:
+                self._set_response(200)
+                return 200
             else:
-                #uncached_record=DQ.syncCheck()
-                DQ.checkAmount()
-            self._set_response(200)
+                self._set_response(409)
+                msg="{'Status':'Error occured.','ErrorCode':"+str(result)+"}"
+                self.wfile.write(msg.encode('utf-8'))
+                #TODO
+                #TODO
+                #TODO
+                #TODO
+                #TODO
+                #TODO
+                #Signal Apache
+                return 409
+            
 
         
         
@@ -270,7 +293,8 @@ def run(server_class=ThreadingHTTPServer,handler_class=Handler,port=PORT):
     httpd.server_close()
     logging.info("Stopping httpd...\n")
 
-def init():
+def init():    
+
     print("system init.")
 if __name__=="__main__":
     init()
