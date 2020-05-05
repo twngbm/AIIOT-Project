@@ -1,0 +1,7 @@
+Dataset/
+.ipynb_checkpoints/
+jupyter_notebook_config.py
+nupic/
+test/
+.vscode
+__pycache__/

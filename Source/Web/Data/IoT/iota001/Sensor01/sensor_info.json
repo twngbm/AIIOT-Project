@@ -1,0 +1,13 @@
+{
+    "sensor_info":{
+        "deviceID":"Sensor01",
+        "timeResolution":"30",
+        "sensorName":"Kitchen_Power_Meter",
+        "fieldName":"Power consumption",
+        "refRoom":"urn:ngsi-ld:Room:4",
+        "sensorType":"Electricity",
+        "unit" : "Celsius",
+        "dummy": "True",
+        "measurement": "COUNT"
+    }
+}

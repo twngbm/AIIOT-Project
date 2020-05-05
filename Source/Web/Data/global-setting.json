@@ -1,0 +1,23 @@
+{
+    "system_setting":{
+        "ORION":"http://fiware-orion:1026",
+        "QUANTUMLEAP":"http://fiware-quantumleap:8668",
+        "AIOTDFC":"http://aiot-dfc:9250"
+    },
+    "fiware_setting":{
+        "timezone":"Asia/Taipei",
+        "address":{
+            "streetAddress":"No.1, University Road",
+            "addressRegion":"Tainan City",
+            "Country":"Taiwan,R.O.C."
+        },
+        "houseName":"Rteslab",
+        "Floor":["1F","2F","B1"],
+        "Room":[{"Kitchen":"1F"},
+                {"Living Room":"2F"},
+                {"Rest Room":"1F"},
+                {"Rest Room":"2F"},
+                {"Basement":"B1"}]
+    }
+}
+

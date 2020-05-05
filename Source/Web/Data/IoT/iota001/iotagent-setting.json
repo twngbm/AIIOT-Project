@@ -1,0 +1,8 @@
+{
+    "iotagent_setting":{
+        "IOT_AGENT":"http://fiware-iotagent:4041",
+        "fiware-service":"iota001",
+        "apikey":"UskwkHiIMN05hLHvmOdnkPR2hAmFmwTi",
+        "entity_type":"Thing"
+    }
+}
