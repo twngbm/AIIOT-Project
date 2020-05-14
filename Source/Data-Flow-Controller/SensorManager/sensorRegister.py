@@ -14,6 +14,7 @@ def sensorRegister(setting):
     fiware_servicepath="/"
     dummy=setting["sensor_info"]["dummy"]
     unit=setting["sensor_info"]["unit"]
+    data_type=setting["sensor_info"]["dataType"]
     device_id=setting["sensor_info"]["deviceID"]
     entity_name="urn:ngsi-ld:"+setting["sensor_info"]["sensorType"]+":"+device_id[6:]
     entity_type="Sensor"
@@ -21,11 +22,11 @@ def sensorRegister(setting):
     field_name=setting["sensor_info"]["fieldName"]
     time_resolution=setting["sensor_info"]["timeResolution"]
     target_time=setting["sensor_info"]["targetTime"]
-    target_model=setting["sensor_info"]["targetModle"]
+    target_model=setting["sensor_info"]["targetModel"]
     sensor_type=setting["sensor_info"]["sensorType"]
     measurement=setting["sensor_info"]["measurement"]
     refRoomID=setting["sensor_info"]["refRoom"]
-    attribute=[{"object_id": measurement, "name": "count", "type": "Float"},
+    attribute=[{"object_id": measurement, "name": "count", "type": data_type},
                {"object_id":"TS", "name": "timestamp", "type":"DateTime"}]
     
     print("Start create device on ",IOTA," with device_id: ",device_id)
@@ -39,9 +40,11 @@ def sensorRegister(setting):
                        {"name":"targetModel", "type": "Text", "value": target_model},
                        {"name":"sensorType", "type": "Text", "value": sensor_type},   
                        {"name":"unit", "type": "Text", "value": unit},
-                       {"name":"predictionValue", "type": "Float", "value": "None"},
+                       {"name":"predictionValue", "type": data_type, "value": "None"},
                        {"name":"anomalyScore", "type": "Float", "value": "None"},
-                       {"name":"anomalyLikehood", "type": "Float", "value": "None"}]
+                       {"name":"anomalyLikehood", "type": "Float", "value": "None"},
+                       {"name":"LogAnomalyLikehood", "type": "Float", "value": "None"},
+                       {"name":"Anomaly", "type": "Bool", "value": "False"}]
     
     if dummy:
         static_attributes.append({"name":"isDummy", "type": "Bool", "value": "True"})
@@ -62,11 +65,14 @@ def sensorRegister(setting):
     if r.status_code==201:
         os.mkdir("Data/IoT/"+fiware_service+"/"+device_id)
         with open("./Data/IoT/"+fiware_service+"/"+device_id+"/localdata.tmp","w+") as f:
+            f.write("value,timestamp\n"+data_type+",datetime\n ,T\n")
             f.close()
         with open("./Data/IoT/"+fiware_service+"/"+device_id+"/counter.tmp","w+") as f:
             f.write("0")
             f.close()
         with open("./Data/IoT/"+fiware_service+"/"+device_id+"/localnewest.tmp","w+") as f:
+            f.close()
+        with open("./Data/IoT/"+fiware_service+"/"+device_id+"/preLearning","w+") as f:
             f.close()
             
             

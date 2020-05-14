@@ -78,7 +78,7 @@ def makeSubscription(setting):
                 "http":{
                     "url":url
                 },
-                "attrs":["count","predictionValue","anomalyScore","anomalyLikehood","timestamp"]
+                "attrs":["count","predictionValue","anomalyScore","anomalyLikehood","timestamp","LogAnomalyLikehood","Anomaly"]
             }
         }
         if url==AIOTDFC+"/notify":
@@ -86,6 +86,8 @@ def makeSubscription(setting):
             data["notification"]["attrs"].remove("predictionValue")
             data["notification"]["attrs"].remove("anomalyScore")
             data["notification"]["attrs"].remove("anomalyLikehood")
+            data["notification"]["attrs"].remove("LogAnomalyLikehood")
+            data["notification"]["attrs"].remove("Anomaly")
         r=requests.post(ORION+"/v2/subscriptions?options=skipInitialNotification",headers=header,data=json.dumps(data))
         print(r.status_code,r.text)
         if r.status_code!=201:

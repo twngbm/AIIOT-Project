@@ -1,21 +1,18 @@
 import datetime
-def dataPreprocesser(path:str,data:dict,static_attributes:dict):
+def dataPreprocesser(path:str,data:dict,device_id:str,static_attributes:dict):
     
+    value,timestamp=dataClean(path,data["count"],data["timestamp"],data["dataType"])
     
-    value,timestamp=dataClean(path,data["count"],data["timestamp"])
-    
-    __elarycheckResult__=elaryCheck(path,value,timestamp,static_attributes)
-    
-    
-    return __elarycheckResult__,{"value":value,"timestamp":timestamp}
+    __elarycheckResult__=elaryCheck(path,value,data["dataType"],timestamp,static_attributes)
+    return __elarycheckResult__,{"value":value,"dataType":data["dataType"],"timestamp":str(timestamp),"entity_id":data["entity_id"],"device_id":device_id,"fiware_service":data["fiware_service"]}
 
-def dataClean(path:str,value:str,timestamp:str):
+def dataClean(path:str,value:str,timestamp:str,dataType:str):
     #TODO:Cleanup data
     timestamp=datetime.datetime.strptime(timestamp,'%Y-%m-%dT%H:%M:%S.00Z')
     return value,timestamp
 
-def elaryCheck(path:str,value:str,timestamp:object,static_attributes:dict):
-    __LOCALDATA__=path+"/localdata.tmp"
+def elaryCheck(path:str,value:str,dataformat:str,timestamp:object,static_attributes:dict):
+    #__LOCALDATA__=path+"/localdata.tmp"
     __COUNTER__=path+"/counter.tmp"
     __LOCALNEWEST__=path+"/localnewest.tmp"
     with open(__COUNTER__,"r") as c:

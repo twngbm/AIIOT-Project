@@ -103,7 +103,7 @@ def cleanCratedb_Table(setting):
     
 
 def cleanAll():
-    with open("../Data/global-setting-entityID.json","r") as f:
+    with open("../Data/global-setting.json","r") as f:
         setting=json.load(f)
     cleanFiware(setting)
     PATH="../Data/IoT/"
@@ -118,8 +118,8 @@ def cleanAll():
             cleanIoTAgent_Service(iota_setting)            
             cleanIoTAgent_Supscription(iota_setting)
             cleanIoTAgent_Agent(iota_setting)
-    print("Remove global-setting-entityID.json")
-    os.remove("../Data/global-setting-entityID.json")
+    print("Remove global-.json")
+    os.remove("../Data/global-setting.json")
     print("Remove IoT folder")
     shutil.rmtree("../Data/IoT")
     print("Remove Data folder")

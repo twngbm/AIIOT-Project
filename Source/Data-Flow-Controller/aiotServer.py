@@ -58,9 +58,10 @@ class Handler(BaseHTTPRequestHandler):
         
         if str(self.path)=="/notify":
             logging.info("New notification come from orion.")
-            
+
             try:
                 entity_id=post_data_dict["data"][0]["id"]
+                dataType=post_data_dict["data"][0]["count"]["type"]
                 fiware_service=self.headers["Fiware-Service"]
                 count=post_data_dict["data"][0]["count"]["value"]
                 timestamp=post_data_dict["data"][0]["timestamp"]["value"]
@@ -69,7 +70,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write("{'Status':'Wrong Formate.'}".encode('utf-8'))
                 return 404
             __PATH__=os.path.dirname(os.path.abspath(__file__))
-            if not os.path.isfile(__PATH__+"/Data/global-setting-entityID.json"):
+            if not os.path.isfile(__PATH__+"/Data/global-setting.json"):
                 logging.warning("Initial FIWARE First")
                 self._set_response(404)
                 self.wfile.write("{'Status':'Initial FIWARE First'}".encode('utf-8'))
@@ -84,7 +85,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._set_response(200)
                 return 200
 
-            Data={"entity_id":entity_id,"fiware_service":fiware_service,"count":count,"timestamp":timestamp}
+            Data={"entity_id":entity_id,"fiware_service":fiware_service,"count":count,"timestamp":timestamp,"dataType":dataType}
             result=dataQuerier.dataStore(Data)
             if result==[]:
                 self._set_response(200)
@@ -114,7 +115,7 @@ class Handler(BaseHTTPRequestHandler):
         
         elif str(self.path)=="/sensor":
             IOTAGENT=str(self.headers["Iot-Agent"])
-            if not os.path.isfile("./Data/global-setting-entityID.json"):
+            if not os.path.isfile("./Data/global-setting.json"):
                 self._set_response(404)
                 self.wfile.write("{'Status':'Initial FIWARE First'}".encode('utf-8'))
                 return 404
@@ -139,7 +140,7 @@ class Handler(BaseHTTPRequestHandler):
                 
             logging.info("Creating new sensor entity")
 
-            with open("./Data/global-setting-entityID.json") as f:
+            with open("./Data/global-setting.json") as f:
                 setting=json.load(f)
             with open("./Data/IoT/"+IOTAGENT+"/iotagent-setting.json") as f:
                 setting.update(json.load(f))
@@ -189,7 +190,7 @@ class Handler(BaseHTTPRequestHandler):
         elif str(self.path)=="/iotagent-init":
             logging.info("Initializing Iot-Agent")
             try:
-                with open("./Data/global-setting-entityID.json","r" ) as f:
+                with open("./Data/global-setting.json","r" ) as f:
                     setting=json.load(f)
             except:
                 self._set_response(404)

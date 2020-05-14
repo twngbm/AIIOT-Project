@@ -5,9 +5,9 @@ import os
 
 Fake=False
 __PTAH__=os.path.dirname(os.path.abspath(__file__))
-setting_path="../Data/global-setting-entityID.json"
+setting_path="../Data/global-setting.json"
 PATH="../Data/IoT/"
-if not os.path.isfile("../Data/global-setting-entityID.json"):
+if not os.path.isfile("../Data/global-setting.json"):
     print("********************************************************")
     print("WARNING:System havn't been initialliz,use Web's setting!")
     print("********************************************************")

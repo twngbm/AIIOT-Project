@@ -7,6 +7,7 @@
         "sensorName":"Kitchen_Power_Meter",
         "fieldName":"Power consumption",
         "refRoom":"urn:ngsi-ld:Room:4",
+        "dataType":"float",
         "sensorType":"Electricity",
         "unit" : "Celsius",
         "dummy": "True",

@@ -78,11 +78,11 @@ def makeRoom(ORION,floor_id,room):
         }
         r=requests.post(ORION+"/v2/entities",headers=header,data=json.dumps(data))
     return room_id
-def writeSetback(setting,house_id,floor_id,room_id):
+def writeSetback(setting):
     system_setting={}
     system_setting["system_setting"]=setting["system_setting"]
     os.mkdir("Data")
-    with open("./Data/global-setting-entityID.json","w+") as opfile:
+    with open("./Data/global-setting.json","w+") as opfile:
         json.dump(system_setting,opfile)
 
 def initFiware(setting):
@@ -98,7 +98,7 @@ def initFiware(setting):
         return -1
     floor_id=makeFloor(ORION,house_id,floor)
     room_id=makeRoom(ORION,floor_id,room)
-    writeSetback(setting,house_id,floor_id,room_id)
+    writeSetback(setting)
     return 0
 
     
