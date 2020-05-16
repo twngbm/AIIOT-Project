@@ -5,6 +5,7 @@ import re
 import pprint
 import os
 from os import listdir
+import logging
 def sensorRegister(setting):
     
     ORION=setting["system_setting"]["ORION"]
@@ -23,13 +24,14 @@ def sensorRegister(setting):
     time_resolution=setting["sensor_info"]["timeResolution"]
     target_time=setting["sensor_info"]["targetTime"]
     target_model=setting["sensor_info"]["targetModel"]
+    save_period=setting["sensor_info"]["savePeriod"]
     sensor_type=setting["sensor_info"]["sensorType"]
     measurement=setting["sensor_info"]["measurement"]
     refRoomID=setting["sensor_info"]["refRoom"]
     attribute=[{"object_id": measurement, "name": "count", "type": data_type},
                {"object_id":"TS", "name": "timestamp", "type":"DateTime"}]
     
-    print("Start create device on ",IOTA," with device_id: ",device_id)
+    logging.info("Start create device on "+str(IOTA)+" with device_id: "+str(device_id))
     
     
     static_attributes=[{"name":"sensorName", "type": "Text", "value": sensor_name},
@@ -38,6 +40,7 @@ def sensorRegister(setting):
                        {"name":"timeResolution", "type": "Integer", "value": time_resolution},
                        {"name":"targetTime", "type": "Integer", "value": target_time},
                        {"name":"targetModel", "type": "Text", "value": target_model},
+                       {"name":"savePeriod", "type": "Integer", "value": save_period},
                        {"name":"sensorType", "type": "Text", "value": sensor_type},   
                        {"name":"unit", "type": "Text", "value": unit},
                        {"name":"predictionValue", "type": data_type, "value": "None"},
@@ -61,7 +64,7 @@ def sensorRegister(setting):
     header={"Content-Type": "application/json","fiware-service":fiware_service,"fiware-servicepath":fiware_servicepath}
     r=requests.post(IOTA+"/iot/devices",headers=header,data=json.dumps(data))
     
-    print(r.status_code,r.text)
+    logging.info(str(r.status_code)+str(r.text))
     if r.status_code==201:
         os.mkdir("Data/IoT/"+fiware_service+"/"+device_id)
         with open("./Data/IoT/"+fiware_service+"/"+device_id+"/localdata.tmp","w+") as f:

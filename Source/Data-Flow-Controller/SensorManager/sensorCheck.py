@@ -3,6 +3,9 @@ def sensorCheck(setting):
     must_list=[
         "deviceID",
         "timeResolution",
+        "targetTime",
+        "targetModel",
+        "savePeriod",
         "sensorName",
         "fieldName",
         "refRoom",

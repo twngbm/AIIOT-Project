@@ -4,6 +4,7 @@
         "timeResolution":"30",
         "targetTime":"1209600",
         "targetModel":"HTM",
+        "savePeriod":"1209600",
         "sensorName":"Kitchen_Power_Meter",
         "fieldName":"Power consumption",
         "refRoom":"urn:ngsi-ld:Room:4",

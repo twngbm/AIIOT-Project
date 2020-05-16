@@ -63,7 +63,9 @@ with open(__PATH__ + "/../localdata.tmp", "r") as filein:
     with open(__PATH__+"/HTMmodel/anomalyhelper.pkl","w+") as  f:
         pickle.dump(anomalyLikelihoodHelper,f)
         f.close()
-
+    with open(__PATH__+"/HTMmodel/shifthelper.pkl","w+") as  f:
+        pickle.dump(shifter,f)
+        f.close()
     
     """
     ModelResult(    predictionNumber=0

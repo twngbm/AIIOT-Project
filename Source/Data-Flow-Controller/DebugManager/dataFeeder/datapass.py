@@ -17,9 +17,6 @@ with open("rec-center-every-15m-large.csv", "r") as f:
         timestamp=str(i[0]).split(" ")
         ymd=timestamp[0].split("/")
         ymd="20"+ymd[2]+"-"+ymd[0]+"-"+ymd[1]
-        if count>4000:
-            no=input("")
-            time.sleep(0.1)
         timestamp=ymd+"T"+timestamp[1]
         print(timestamp)
         data = "COUNT|" + str(i[1]) + "|TS|" + timestamp
@@ -29,4 +26,4 @@ with open("rec-center-every-15m-large.csv", "r") as f:
             data=data,
         )
         print(r.status_code)
-        
+        no=input()

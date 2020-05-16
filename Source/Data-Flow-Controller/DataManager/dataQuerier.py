@@ -30,43 +30,53 @@ def dataStore(data:dict):
     if 2 in checkResult:
         return checkResult
     if os.path.isfile(__DEVICE_PATH__+"/inLearning"):
+        statusUpdate(__DEVICE_PATH__,data)
         return checkResult
     elif os.path.isfile(__DEVICE_PATH__+"/postLearning"):
+        statusUpdate(__DEVICE_PATH__,data)
         sendStatus=dataSend(__PATH__,data,static_attributes)
         if sendStatus!=0:
             checkResult.append(sendStatus)
         return checkResult
     elif os.path.isfile(__DEVICE_PATH__+"/preLearning"):
         dataCache(__DEVICE_PATH__,data)
+        statusUpdate(__DEVICE_PATH__,data)
         if dataReady(__DEVICE_PATH__,static_attributes):
             sendStatus=dataSend(__PATH__, data,static_attributes)
             if sendStatus!=0:
                 checkResult.append(sendStatus)
         return checkResult
-  
-def dataCache(__DEVICE_PATH__,data):
-    __LOCALDATA__=__DEVICE_PATH__+"/localdata.tmp"
-    __COUNTER__=__DEVICE_PATH__+"/counter.tmp"
+def statusUpdate(__DEVICE_PATH__,data):
+    
     __LOCALNEWEST__=__DEVICE_PATH__+"/localnewest.tmp"
     value=data["value"]
     timestamp=data["timestamp"]
+   
+
+    with open(__LOCALNEWEST__,"w") as ln:
+        ln.write(str(value+","+str(timestamp)))
+def dataCache(__DEVICE_PATH__,data):
+    __COUNTER__=__DEVICE_PATH__+"/counter.tmp"
     with open(__COUNTER__,"r") as c:
         count=int(c.read())
     count+=1
     with open(__COUNTER__,"w") as c:
         c.write(str(count))
-    with open(__LOCALNEWEST__,"w") as ln:
-        ln.write(str(value+","+str(timestamp)))
+    value=data["value"]
+    timestamp=data["timestamp"]
+    __LOCALDATA__=__DEVICE_PATH__+"/localdata.tmp"
     with open(__LOCALDATA__,"a") as ld:
         ld.write(str(value+","+str(timestamp)+"\n"))
 
 def dataReady(path,static_attributes):
     targetTime=float(static_attributes["targetTime"])
     timeResolution=float(static_attributes["timeResolution"])
+
     targetCount=targetTime/timeResolution
     with open(path+"/counter.tmp","r") as c:
         count=int(c.read())
-    print(targetCount,count)
+    msg=path+"Count:"+str(count)+","+str(int((count/targetCount)*100))+"%"
+    logging.info("Sensor At "+msg)
     if targetCount>count:
         return False
     else:

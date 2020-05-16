@@ -15,10 +15,10 @@ def elaryCheck(path:str,value:str,dataformat:str,timestamp:object,static_attribu
     #__LOCALDATA__=path+"/localdata.tmp"
     __COUNTER__=path+"/counter.tmp"
     __LOCALNEWEST__=path+"/localnewest.tmp"
-    with open(__COUNTER__,"r") as c:
-        count=int(c.read())
+    with open(__LOCALNEWEST__,"r") as ln:
+        s=ln.read()
     __CHECKRESULT__=[]
-    if count==0:
+    if s=="":
         pass
     else:
         __CHECKRESULT__=timeperoidCheck(__LOCALNEWEST__,timestamp,int(static_attributes["timeResolution"]),__CHECKRESULT__)

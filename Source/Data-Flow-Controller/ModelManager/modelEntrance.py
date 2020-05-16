@@ -3,12 +3,16 @@ import os
 import socket
 import threading
 import commonIF
-
+import logging
+import multiprocessing
+__GLOBAL_THREADHOLD__=0.7
 
 def init():
     ServerSocket = socket.socket()
+    ServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     ServerSocket.bind(("localhost", 5000))
     ServerSocket.listen(10)
+    logging.info("Init Socket")
     return ServerSocket
 
 
@@ -17,17 +21,18 @@ def dataDecoder(data: bytes):
     try:
         data = data.decode("utf-8")
         data = json.loads(data)
-        data=commonIF.SensoeData(data)
+        data=commonIF.SensorData(data)
     except:
         data = None
     
     return data
 
 
-def threaded_client(connection):
+def threaded_client(connection,__GLOBAL_THREADHOLD__):
     msg = connection.recv(65536)
     connection.close()
     fulldata = dataDecoder(msg)
+    logging.info("Get Data with Timestamp: "+str(fulldata.data.timestamp)+" and value: "+str(fulldata.data.value))
     """
     fulldata=
     {'data': 
@@ -54,15 +59,16 @@ def threaded_client(connection):
     if fulldata == None:
         return -1
     
-    commonIF.dataProcess(fulldata)
+    commonIF.modelHandler(fulldata,__GLOBAL_THREADHOLD__)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     ServerSocket = init()
     while True:
         Client, address = ServerSocket.accept()
-        thread = threading.Thread(
-            None, target=threaded_client, args=(Client,), daemon=True
+        thread = multiprocessing.Process(
+            None, target=threaded_client, args=(Client,__GLOBAL_THREADHOLD__,), daemon=True
         )
         thread.start()
     ServerSocket.close()

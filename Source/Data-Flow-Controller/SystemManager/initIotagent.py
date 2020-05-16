@@ -24,7 +24,7 @@
 ############################################################################################
 import json
 import requests
-
+import logging
 import os
 
 def createServices(setting):
@@ -49,7 +49,7 @@ def createServices(setting):
     return r.status_code
     
 def makeSubscription(setting):
-    print("start making subscriptions")
+    logging.info("Start making subscriptions")
     ORION=setting["system_setting"]["ORION"]
     AIOTDFC=setting["system_setting"]["AIOTDFC"]
     QUANTUMLEAP=setting["system_setting"]["QUANTUMLEAP"]
@@ -89,7 +89,7 @@ def makeSubscription(setting):
             data["notification"]["attrs"].remove("LogAnomalyLikehood")
             data["notification"]["attrs"].remove("Anomaly")
         r=requests.post(ORION+"/v2/subscriptions?options=skipInitialNotification",headers=header,data=json.dumps(data))
-        print(r.status_code,r.text)
+        logging.info(str(r.status_code)+str(r.text))
         if r.status_code!=201:
             return r.status_code
     return 201

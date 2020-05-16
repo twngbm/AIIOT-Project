@@ -3,6 +3,7 @@ import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import logging
+import subprocess
 from SystemManager import initFiware,initIotagent
 from SensorManager import sensorRegister,sensorManager,sensorCheck
 from DataManager import dataQuerier
@@ -14,7 +15,7 @@ PORT=9250
 TIMEZONE=+8
 class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        logging.info("POST request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
+        #logging.info("POST request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
         try:
             content_length = int(self.headers['Content-Length'])
         except:
@@ -57,7 +58,7 @@ class Handler(BaseHTTPRequestHandler):
         #         Start Stage 1
         
         if str(self.path)=="/notify":
-            logging.info("New notification come from orion.")
+            #logging.info("New notification come from orion.")
 
             try:
                 entity_id=post_data_dict["data"][0]["id"]
@@ -86,7 +87,9 @@ class Handler(BaseHTTPRequestHandler):
                 return 200
 
             Data={"entity_id":entity_id,"fiware_service":fiware_service,"count":count,"timestamp":timestamp,"dataType":dataType}
+
             result=dataQuerier.dataStore(Data)
+
             if result==[]:
                 self._set_response(200)
                 return 200
@@ -94,7 +97,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._set_response(409)
                 msg="{'Status':'Error occured.','ErrorCode':"+str(result)+"}"
                 self.wfile.write(msg.encode('utf-8'))
-                #TODO
+                #TODO: Anomaly Raise
                 #TODO
                 #TODO
                 #TODO
@@ -197,7 +200,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write("{'Status':'Initial FIWARE First'}".encode('utf-8'))
                 return 404
             setting.update(post_data_dict)
-            print(setting)
+            
             
             ret=initIotagent.initIotagent(setting)
             
@@ -216,7 +219,7 @@ class Handler(BaseHTTPRequestHandler):
             self._set_response(400)
             self.wfile.write("{'Status':'Fail'}".encode('utf-8'))
             return 400
-            
+        logging.info("End of POST")
 
     def do_GET(self):
                 
@@ -283,21 +286,29 @@ class Handler(BaseHTTPRequestHandler):
 
     
 def run(server_class=ThreadingHTTPServer,handler_class=Handler,port=PORT):
-    logging.basicConfig(level=logging.DEBUG)
+    
     server_address=('',port)
     httpd=server_class(server_address,handler_class)
     logging.info("Starting httpd...\n")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        pass
+        logging.critical("Catch KeyboardInterrupt")
     httpd.server_close()
     logging.info("Stopping httpd...\n")
 
-def init():    
-
-    print("system init.")
+def init(): 
+    __PATH__=os.path.dirname(os.path.abspath(__file__))
+    pid=os.fork()
+    if pid==0:
+        logging.info("Starting Module Entrance...\n")
+        p=subprocess.Popen(["python3.7",__PATH__+"/ModelManager/modelEntrance.py"])
+        p.wait()
+    else:
+        
+        return 0
 if __name__=="__main__":
+    logging.basicConfig(level=logging.INFO)
     init()
     run()
 

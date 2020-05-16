@@ -15,7 +15,7 @@
       "streams": [
         {
         "info": "localdata.tmp", 
-        "source": "file://../localdata.tmp", 
+        "source": "file://localdata.tmp", 
         "columns": [
             "*"
           ],
