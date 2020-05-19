@@ -16,6 +16,7 @@ from DataManager import dataWriteback
 class model:
     def __init__(self, Data,__GLOBAL_THREADHOLD__):
         self.Data = Data
+        
         self.fiware_service = self.Data.data.fiware_service
         self.deviceID = self.Data.data.deviceID
         self.__GLOBAL_THREADHOLD__=__GLOBAL_THREADHOLD__
@@ -63,7 +64,9 @@ class model:
         print("Start Prepare at:",startTime)
         self.__REPOPATH__ = os.path.dirname(os.path.abspath(__file__))
         p = subprocess.Popen(
-            ["cp", "-r", self.__REPOPATH__ + "/HTM", self.__SENSORDIR__]
+            ["cp", "-r", self.__REPOPATH__ + "/HTM", self.__SENSORDIR__],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
         )
         p.wait(10)
         finishTime=time.time()
@@ -87,9 +90,8 @@ class model:
         with open(self.__WORKDIR__ + "search_def.json", "w") as f:
             json.dump(swarm_config, f)
         swarm = subprocess.Popen(
-            ["/usr/bin/python2.7", self.__WORKDIR__ + "swarm.py"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            ["/usr/bin/python2.7", self.__WORKDIR__ + "swarm.py"]
+
         )
         while True:
             state=swarm.poll()
