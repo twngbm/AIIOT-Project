@@ -1,24 +1,24 @@
 ############################################################################################
-#   This script run some setup command to init Iot-Agent for UltraLight as a component of 
+#   This script run some setup command to init Iot-Agent for UltraLight as a component of
 # FIWARE system.
 #   This script require an api key for each service group define in file 'api_key.py'.
 #   Assum different type of devices ( passive devices, initactive devices...) will have it
-# different service group,hense with different "fiware-service" and endpoiot. For each iot-agent connected 
+# different service group,hense with different "fiware-service" and endpoiot. For each iot-agent connected
 # to FIWARE will have each own single "fiware-servicepath", archicture show below:
 #                 --------------
-#fiware-service: | iota001 |
+# fiware-service: | iota001 |
 #                 --------------
 #                    -----    -----
-#fiware-servicepath:| /ps |  | /is |
+# fiware-servicepath:| /ps |  | /is |
 #                    -----    -----
 #            --------------
-#iot-agent: | iot-agent_UL |
+# iot-agent: | iot-agent_UL |
 #            --------------
 #           ---------    ---------
-#api keys: | key01   |  | key02   |
+# api keys: | key01   |  | key02   |
 #           ---------    ---------
 #           ---------    ---------
-#resource: | /iot/ps |  | /iot/is |
+# resource: | /iot/ps |  | /iot/is |
 #           ---------    ---------
 #
 ############################################################################################
@@ -27,94 +27,100 @@ import requests
 import logging
 import os
 
+
 def createServices(setting):
-    ORION=setting["system_setting"]["ORION"]
-    IOTA=setting["iotagent_setting"]["IOT_AGENT"]
-    apikey=setting["iotagent_setting"]["apikey"]
-    entity_type=setting["iotagent_setting"]["entity_type"]
-    fiware_service=setting["iotagent_setting"]["fiware-service"]
-    fiware_servicepath="/"
-    header={'Content-Type': 'application/json','fiware-service': fiware_service,'fiware-servicepath': fiware_servicepath}
-    data={
-     "services": [
-       {
-         "apikey":      apikey,
-         "cbroker":     ORION,
-         "entity_type": entity_type,
-         "resource":    "/iot/d"
-       }
-     ]
+    ORION = setting["system_setting"]["ORION"]
+    IOTA = setting["iotagent_setting"]["IOT_AGENT"]
+    apikey = setting["iotagent_setting"]["apikey"]
+    entity_type = setting["iotagent_setting"]["entity_type"]
+    fiware_service = setting["iotagent_setting"]["fiware-service"]
+    fiware_servicepath = "/"
+    header = {'Content-Type': 'application/json',
+              'fiware-service': fiware_service, 'fiware-servicepath': fiware_servicepath}
+    data = {
+        "services": [
+            {
+                "apikey":      apikey,
+                "cbroker":     ORION,
+                "entity_type": entity_type,
+                "resource":    "/iot/d"
+            }
+        ]
     }
-    r=requests.post(IOTA+"/iot/services",headers=header,data=json.dumps(data))
+    r = requests.post(IOTA+"/iot/services", headers=header,
+                      data=json.dumps(data))
     return r.status_code
-    
+
+
 def makeSubscription(setting):
     logging.info("Start making subscriptions")
-    ORION=setting["system_setting"]["ORION"]
-    AIOTDFC=setting["system_setting"]["AIOTDFC"]
-    QUANTUMLEAP=setting["system_setting"]["QUANTUMLEAP"]
-    fiware_service=setting["iotagent_setting"]["fiware-service"]
-    fiware_servicepath="/"
-    header={"Content-Type": "application/json","fiware-service":fiware_service,"fiware-servicepath":fiware_servicepath}
+    ORION = setting["system_setting"]["ORION"]
+    AIOTDFC = setting["system_setting"]["AIOTDFC"]
+    QUANTUMLEAP = setting["system_setting"]["QUANTUMLEAP"]
+    fiware_service = setting["iotagent_setting"]["fiware-service"]
+    fiware_servicepath = "/"
+    header = {"Content-Type": "application/json",
+              "fiware-service": fiware_service, "fiware-servicepath": fiware_servicepath}
 
-    for url in [QUANTUMLEAP+"/v2/notify",AIOTDFC+"/notify"]:
+    for url in [QUANTUMLEAP+"/v2/notify", AIOTDFC+"/notify"]:
 
-        data={
-            "description":"Notify QuantumLeap of value changes of any Sensor",
-            "subject":{
-                "entities":[
+        data = {
+            "description": "Notify QuantumLeap of value changes of any Sensor",
+            "subject": {
+                "entities": [
                     {
                         "idPattern": ".*",
-                        "type":"Sensor"
+                        "type": "Sensor"
                     }
                 ],
-                "condition":{
-                    "attrs":[
+                "condition": {
+                    "attrs": [
                         "timestamp"
-                        ]
+                    ]
                 }
             },
-            "notification":{
-                "http":{
-                    "url":url
+            "notification": {
+                "http": {
+                    "url": url
                 },
-                "attrs":["count","predictionValue","anomalyScore","anomalyLikehood","timestamp","LogAnomalyLikehood","Anomaly"]
+                "attrs": ["count", "predictionValue", "anomalyScore", "anomalyLikehood", "timestamp", "LogAnomalyLikehood", "Anomaly"]
             }
         }
-        if url==AIOTDFC+"/notify":
-            data["description"]="Notify Data Flow Contoroler of value changes of any Sensor"
+        if url == AIOTDFC+"/notify":
+            data["description"] = "Notify Data Flow Contoroler of value changes of any Sensor"
             data["notification"]["attrs"].remove("predictionValue")
             data["notification"]["attrs"].remove("anomalyScore")
             data["notification"]["attrs"].remove("anomalyLikehood")
             data["notification"]["attrs"].remove("LogAnomalyLikehood")
             data["notification"]["attrs"].remove("Anomaly")
-        r=requests.post(ORION+"/v2/subscriptions?options=skipInitialNotification",headers=header,data=json.dumps(data))
+        r = requests.post(ORION+"/v2/subscriptions?options=skipInitialNotification",
+                          headers=header, data=json.dumps(data))
         logging.info(str(r.status_code)+str(r.text))
-        if r.status_code!=201:
+        if r.status_code != 201:
             return r.status_code
     return 201
+
+
 def writebackSetting(setting):
-    
-    iota_setting={}
-    iota_setting["iotagent_setting"]=setting["iotagent_setting"]
+
+    iota_setting = {}
+    iota_setting["iotagent_setting"] = setting["iotagent_setting"]
     iota_setting["iotagent_setting"].pop("apikey")
-    fiware_service=iota_setting["iotagent_setting"].pop("fiware-service")
+    fiware_service = iota_setting["iotagent_setting"].pop("fiware-service")
     iota_setting["iotagent_setting"].pop("entity_type")
-    PATH="Data/IoT/"+fiware_service
-    os.mkdir(PATH)    
-    with open(PATH+"/iotagent-setting.json","w") as opfile:
-        json.dump(iota_setting,opfile)
-    
-    
+    PATH = "Data/IoT/"+fiware_service
+    os.mkdir(PATH)
+    with open(PATH+"/iotagent-setting.json", "w") as opfile:
+        json.dump(iota_setting, opfile)
+
+
 def initIotagent(setting):
-    r=createServices(setting)
-    if r!=201:
+    r = createServices(setting)
+    if r != 201:
         return r
-    r=makeSubscription(setting)
-    if r!=201:
+    r = makeSubscription(setting)
+    if r != 201:
         return r
     writebackSetting(setting)
-    
+
     return 0
-    
-    
