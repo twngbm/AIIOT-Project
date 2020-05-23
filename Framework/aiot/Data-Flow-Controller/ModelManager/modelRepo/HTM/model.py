@@ -41,11 +41,11 @@ os.write(writer,msg)
 os.close(writer)
 
 while True:
-    if (reader,select.POLLIN) in poll.poll():
+    if (reader,select.POLLIN) in poll.poll(100):
         msg=get_message(reader)
     else:
         continue
-    print "MODEL GET MSG:" + msg
+    print "MODEL GET MSG:" + msg+"\n"
     if msg=="SAVE":
         pid=os.fork()
         if pid==0:
@@ -57,19 +57,9 @@ while True:
             with open(__PATH__+"/HTMmodel/shifthelper.pkl","w+") as  f:
                 pickle.dump(shifter,f)
                 f.close()
-            break
+            os._exit(0)
         else:
             continue
-    elif msg=="STOP":
-        model.save(__PATH__+"/HTMmodel")
-        with open(__PATH__+"/HTMmodel/anomalyhelper.pkl","w+") as  f:
-            pickle.dump(anomalyLikelihoodHelper,f)
-            f.close()
-        with open(__PATH__+"/HTMmodel/shifthelper.pkl","w+") as  f:
-            pickle.dump(shifter,f)
-            f.close()
-        os.system("cp "+__PATH__+"/../localnewest.tmp "+__PATH__)
-        break
     
     msg=msg.split(",")
     modelInput={"value":float(msg[0])}

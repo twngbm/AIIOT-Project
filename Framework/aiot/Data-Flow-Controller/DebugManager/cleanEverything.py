@@ -106,8 +106,11 @@ def cleanCratedb_Table(setting):
 
 def cleanAll():
     __PATH__=os.path.dirname(os.path.abspath(__file__))
-    with open(__PATH__+"/../Data/global-setting.json","r") as f:
-        setting=json.load(f)
+    try:
+        with open(__PATH__+"/../Data/global-setting.json","r") as f:
+            setting=json.load(f)
+    except:
+        return 1
     cleanFiware(setting)
     PATH=__PATH__+"/../Data/IoT/"
     dir_l=os.listdir(PATH)
@@ -128,6 +131,7 @@ def cleanAll():
     print("Remove Data folder")
     shutil.rmtree(__PATH__+"/../Data")
     print("Clean up done.")
+    return 0
 if __name__=="__main__":
     cleanAll()
     

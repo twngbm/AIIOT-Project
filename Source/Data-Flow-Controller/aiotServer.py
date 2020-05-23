@@ -343,7 +343,6 @@ def run(server_class=ThreadingHTTPServer, handler_class=Handler, port=PORT):
 
 
 def init():
-    __PATH__ = os.path.dirname(os.path.abspath(__file__))
 
     from ModelManager import modelEntrance
     pid = os.fork()
