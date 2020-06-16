@@ -53,7 +53,7 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 from DataManager import dataAccessor
 
-class SensorCommand:
+class ModelCommand:
     def __init__(self, data: dict):
         self.dType = data["dType"]
         self.data = __COMMAND__(data)
@@ -110,6 +110,7 @@ class __STATIC_ATTRITUBES__:
         self.timeResolution = float(
             self.__static_attributes__["timeResolution"])
         self.savePeriod = int(self.__static_attributes__["savePeriod"])
+        self.retrainPeriod = int(self.__static_attributes__["retrainPeriod"])
         self.targetTime = float(self.__static_attributes__["targetTime"])
         self.targetModel = self.__static_attributes__["targetModel"]
         self.sensorType = self.__static_attributes__["sensorType"]
@@ -266,6 +267,15 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
             except:
                 pass
             logging.info("Model Train Done")
+
+            if trainFlag:
+                Path(__SENSORDIR__+"postLearning").touch()
+                try:
+                    os.unlink(__SENSORDIR__+"inLearning")
+                except:
+                    pass
+                return 0
+                
         if not Model.isOnline:
             logging.info("Model Bootup...")
             Path(__SENSORDIR__+"inLearning").touch()

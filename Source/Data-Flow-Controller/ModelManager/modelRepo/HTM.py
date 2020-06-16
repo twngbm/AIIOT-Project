@@ -65,7 +65,9 @@ class model:
                 self.isSavePeriod = False
         except:
             self.isSavePeriod = False
+        
         self.isRetrainPeriod = False
+        
 
         if os.path.isfile(self.__WORKDIR__+"modelInactive"):
             self.isSafeStop = True

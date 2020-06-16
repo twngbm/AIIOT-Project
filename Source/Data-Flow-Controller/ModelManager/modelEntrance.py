@@ -26,7 +26,7 @@ def dataDecoder(data: bytes):
         if data["dType"]=="DATA":
             data = commonIF.SensorData(data)
         elif data["dType"]=="COMMAND":
-            data = commonIF.SensorCommand(data)
+            data = commonIF.ModelCommand(data)
 
     except:
         data = None

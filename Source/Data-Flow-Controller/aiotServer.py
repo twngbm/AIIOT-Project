@@ -6,12 +6,12 @@ import logging
 import subprocess
 import multiprocessing
 import socket
+import SystemManager
 from SystemManager import initFiware, initIotagent
-from SensorManager import sensorRegister, sensorManager, sensorCheck
-from DataManager import dataQuerier
+from SensorManager import sensorRegister, sensorManager
+from DataManager import dataQuerier, dataAccessor
 import requests
 import time
-from DebugManager import cleanEverything
 
 
 PORT = 9250
@@ -22,47 +22,33 @@ LOG_LEVEL = logging.INFO
 
 class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
+        # /entities -> Create Entity (House,Floor,Room,Entity)
+        # /service-groups -> Setup Service Group
+        # /devices -> Create Sensor Node Entity
+        # /devices/<service_group>/<deviceID>/controls -> Send Command to <service_group>'s <deviceID>
+        # /subscriptions -> Create Subscription
         try:
             content_length = int(self.headers['Content-Length'])
         except:
-            self._set_response(400)
-            self.wfile.write("{'Status':'No Data Input'}".encode('utf-8'))
-            return 400
+            return self._set_response(400, "{'Status':'No Data Input'}")
+
         post_data = self.rfile.read(content_length).decode('utf-8')
         try:
             post_data_dict = json.loads(post_data)
         except:
-            return 400
+            return self._set_response(400, "{'Status':'Wrong Data Format'}")
 
-        # /notify
-        # Endpoint for fiware subscription
-        # Stage 1:
-        # Data Collecting
-        # New Data come from /notify and call DataQuier to store data at local.
-        #
-        # Stage 2:
-        # Swarm
-        # When data amount reach threadhold
-        # DataQuier call swarm to make OPF's discription.
-        # After finish swarm, deleted local file.
-        #
-        # Stage 3:(fork 1)
-        # Process all data in CrateDB
-        # Queue data where prediction value == NULL in CrateDB and process than all
-        # Stage 3:(fork 2)
-        # Process new come data from /notify
+        if str(self.path)=="/init":
+            ret=SystemManager.writeSetback(post_data_dict)
+            
+            if ret==-1:
+                return self._set_response(422, "{'Status':'Already Exists'}")
+            elif ret==-2:
+                return self._set_response(400, "{'Status':'Wrong Format'}")
+            elif ret==0:
+                return self._set_response(201, "{'Status':'Create'}")            
 
-        # Server Restart
-        # If OPF's discription exist
-        #     Start Stage 3
-        # Else
-        #     Start count current data in CrateDB and local data
-        #         If local data < CrateDB
-        #             Que Data from crateDB and store in local data
-        #         Start Stage 1
-
-        if str(self.path) == "/notify":
-            #logging.info("New notification come from orion.")
+        elif str(self.path) == "/notify":
 
             try:
                 entity_id = post_data_dict["data"][0]["id"]
@@ -71,27 +57,10 @@ class Handler(BaseHTTPRequestHandler):
                 count = post_data_dict["data"][0]["count"]["value"]
                 timestamp = post_data_dict["data"][0]["timestamp"]["value"]
             except:
-                self._set_response(404)
-                self.wfile.write("{'Status':'Wrong Formate.'}".encode('utf-8'))
-                return 404
-            __PATH__ = os.path.dirname(os.path.abspath(__file__))
-            if not os.path.isfile(__PATH__+"/Data/global-setting.json"):
-                logging.warning("Initial FIWARE First")
-                self._set_response(404)
-                self.wfile.write(
-                    "{'Status':'Initial FIWARE First'}".encode('utf-8'))
-                return 404
-            if not os.path.isfile(__PATH__+"/Data/IoT/"+fiware_service+"/iotagent-setting.json"):
-                logging.warning("Initial Iotagent Named '" +
-                                fiware_service+"' First")
-                self._set_response(404)
-                meaasge = "{'Status':'Initial Iotagent Named '" + \
-                    fiware_service+"' First'}"
-                self.wfile.write(meaasge.encode('utf-8'))
-                return 404
+                return self._set_response(404, "")
+
             if count == " " and timestamp == "1970-01-01T00:00:00.00Z":
-                self._set_response(200)
-                return 200
+                return self._set_response(200, "")
 
             Data = {"entity_id": entity_id, "fiware_service": fiware_service,
                     "count": count, "timestamp": timestamp, "dataType": dataType}
@@ -99,12 +68,10 @@ class Handler(BaseHTTPRequestHandler):
             result = dataQuerier.dataStore(Data, MODEL_PORT)
 
             if result == []:
-                self._set_response(200)
-                return 200
+                return self._set_response(200, "")
+
             else:
-                self._set_response(409)
-                msg = "{'Status':'Error occured.','ErrorCode':"+str(result)+"}"
-                self.wfile.write(msg.encode('utf-8'))
+
                 # TODO: Anomaly Raise
                 # TODO
                 # TODO
@@ -112,199 +79,235 @@ class Handler(BaseHTTPRequestHandler):
                 # TODO
                 # TODO
                 # Signal Apache
-                return 409
+                msg = "{'Status':'Error occured.','ErrorCode':"+str(result)+"}"
+                return self._set_response(409, msg)
+        elif str(self.path).find("/devices") == 0:
+            if self.path.split("/")[-1] == "controls":
+                logging.info("Command")
 
-        # /sensor
-        # Create a new sensor entity by calling SensorTool/sensorManager.py.
-        # It will create a new folder named {sensorType}+"-"+{device_id} and a new endpoint sensorID
-        # Contain some metadata like sensor static_attribute and counter for HTM swarm
-        # After swarm, it will contain HTM model parmeter file and HTM saved model.
+                resourceSplit = self.path.split("/")
+                try:
+                    fiware_service = resourceSplit[2]
+                    deviceID = resourceSplit[3]
+                except:
+                    return self._set_response(400, "{'Status':'Wrong Format'}")
 
-        elif str(self.path) == "/sensor":
-            IOTAGENT = str(self.headers["Iot-Agent"])
-            if not os.path.isfile("./Data/global-setting.json"):
-                self._set_response(404)
-                self.wfile.write(
-                    "{'Status':'Initial FIWARE First'}".encode('utf-8'))
-                return 404
-            if not os.path.isfile("./Data/IoT/"+IOTAGENT+"/iotagent-setting.json"):
-                self._set_response(404)
-                meaasge = "{'Status':'Initial Iotagent Named '" + \
-                    IOTAGENT+"' First'}"
-                self.wfile.write(meaasge.encode('utf-8'))
-                return 404
-            logging.info("Checking new sensor entity")
+                rts = dataQuerier.commandIssue(fiware_service, deviceID,
+                                               post_data_dict, MODEL_PORT)
 
-            ret = sensorCheck.sensorCheck(post_data_dict)
+                if rts == 0:
+                    return self._set_response(200, "{'Status':'Command Issue'}")
+                elif rts == -1:
+                    return self._set_response(400, "{'Status':'Target Sensor Not Found'}")
+                elif rts == -2:
+                    return self._set_response(400, "{'Status':'Error Command Type'}")
+                elif rts == -3:
+                    return self._set_response(400, "{'Status':'Target Service Group Not Found'}")
+                elif rts == -4:
+                    return self._set_response(400, "{'Status':'Wrong Format'}")
 
-            if type(ret) == list:
-                self._set_response(400)
-                meaasge = "{'Status':'Missing Sensor Information '" + \
-                    str(ret)+"' First'}"
-                self.wfile.write(meaasge.encode('utf-8'))
-                return 400
-            elif ret == 0:
-                pass
-            else:
-                return 404
+            elif self.path.split("/")[-1] == "devices":
+                logging.info("Creating new sensor entity")
 
-            logging.info("Creating new sensor entity")
+                device = sensorRegister.Device()
 
-            with open("./Data/global-setting.json") as f:
-                setting = json.load(f)
-            with open("./Data/IoT/"+IOTAGENT+"/iotagent-setting.json") as f:
-                setting.update(json.load(f))
-            setting.update(post_data_dict)
-            setting["iotagent_setting"]["fiware-service"] = IOTAGENT
+                ret, check = device.sensorRegister(post_data_dict)
 
-            ret = sensorRegister.sensorRegister(setting)
-
-            if ret != 201:
-                if ret == 409:
-                    self._set_response(409)
-                    self.wfile.write(
-                        '{"name":"DUPLICATE_DEVICE_ID","message":"A device with the same pair (Service, DeviceId) was found:Sensor01"}'.encode('utf-8'))
+                if ret == 201:
+                    self._set_response(201, "{'Status':'Create'}")
+                elif ret == 409:
+                    return self._set_response(409, '{"name":"DUPLICATE_DEVICE_ID","message":"A device with the same pair (Service, DeviceId) was found')
+                elif ret == -1:
+                    return self._set_response(404, "{'Status':'Initial FIWARE First'}")
+                elif ret == 400:
+                    message = "{'Status':'Missing Sensor Information '" + \
+                        str(check)+"}"
+                    return self._set_response(400, message)
+                elif ret == -2:
+                    message = "{'Status':'Initial Iotagent Named '" + \
+                        post_data_dict["agent_info"]["Service-Group"] + \
+                        "' First'}"
+                    return self._set_response(404, message)
                 else:
-                    self._set_response(400)
-                    self.wfile.write("{'Status':'Fail'}".encode('utf-8'))
-                return ret
+                    return self._set_response(400, "{'Status':'Fail'}")
+            else:
+                 return self._set_response(400, "{'Status':'Error Usage at Endpoint'}")
+        elif str(self.path).find("/entities") == 0:
 
-            self._set_response(201)
-            self.wfile.write("{'Status':'Create'}".encode('utf-8'))
+            logging.info("Create Entities")
 
-        # /fiware-init
-        # Initial fiware with "global-setting.json"
-        # Check if there are only one "House" type entity already exist.
+            ret = initFiware.createEntity(post_data_dict)
 
-        elif str(self.path) == "/fiware-init":
-
-            logging.info("Initializing FIWARE")
-
-            ret = initFiware.initFiware(post_data_dict)
             if ret == -1:
-                self._set_response(422)
-                self.wfile.write("{'Status':'Already Exists'}".encode('utf-8'))
+                return self._set_response(422, "{'Status':'Already Exists'}")
+            elif ret==-2:
+                return self._set_response(400, "{'Status':'Wrong Format'}")
+            elif ret==-3:
+                return self._set_response(404, "{'Status':'Can't Find Context Broker'}")
             elif ret == 0:
-                self._set_response(201)
-                os.mkdir("Data/IoT/")
-                self.wfile.write("{'Status':'Create'}".encode('utf-8'))
+                return self._set_response(201, "{'Status':'Create'}")
 
-        # /iotagent-init
-        # Initial iotagent with "global-setting.json"
 
-        elif str(self.path) == "/iotagent-init":
-            logging.info("Initializing Iot-Agent")
-            try:
-                with open("./Data/global-setting.json", "r") as f:
-                    setting = json.load(f)
-            except:
-                self._set_response(404)
-                self.wfile.write(
-                    "{'Status':'Initial FIWARE First'}".encode('utf-8'))
-                return 404
-            setting.update(post_data_dict)
+            
 
-            ret = initIotagent.initIotagent(setting)
+        elif str(self.path) == "/service-group":
+            logging.info("Initializing Service Group")
+
+            IotAgent = initIotagent.IotAgent()
+
+            ret = IotAgent.createIotagent(post_data_dict)
 
             if ret == 0:
-                self._set_response(201)
-                self.wfile.write("{'Status':'Create'}".encode('utf-8'))
+                return self._set_response(201, "{'Status':'Create'}")
+            elif ret == -1:
+                return self._set_response(404, "{'Status':'Initial FIWARE First'}")
+            elif ret == -2:
+                return self._set_response(400, "{'Status':'Wrong Format, Must Be List'}")
+            elif ret == 422:
+                return self._set_response(ret, "{'Status':'Already Exist'}")
+            elif ret == 400:
+                return self._set_response(ret, "{'Status':'Wrong Format'}")
             else:
-                self._set_response(ret)
-                if ret == 409:
-                    self.wfile.write(
-                        "{'Status':'Already Exist'}".encode('utf-8'))
-                else:
-                    self.wfile.write("{'Status':'Fail'}".encode('utf-8'))
-        # /iotagent-init
-        # Initial iotagent with "global-setting.json"
-        elif str(self.path) == "/command":
-            logging.info("Command")
+                return self._set_response(ret, "{'Status':'Fail'}")
 
-            fiware_service = str(self.headers["fiware-service"])
-            sensorUID = post_data_dict["id"]
-            actionType = post_data_dict["actionType"]
-            action = post_data_dict["action"]
-            metadata = post_data_dict["metadata"]
-            if actionType == "modelControl":
-                rts = dataQuerier.commandIssue(
-                    sensorUID, fiware_service, action, metadata, MODEL_PORT)
-            elif actionType == "sensorControl":
-                pass
-                # TODO:Sensor Control
-            else:
-                self._set_response(400)
-                self.wfile.write(
-                    "{'Status':'Error Command Type'}".encode('utf-8'))
-                return 400
-            if rts == 1:
-                self._set_response(400)
-                self.wfile.write(
-                    "{'Status':'Target Sensor Not Found'}".encode('utf-8'))
-                return 400
-            self._set_response(200)
-            self.wfile.write("{'Status':'Command Issue'}".encode('utf-8'))
+        elif str(self.path) == "/subscription":
+            logging.info("Create New Subscription")
+            try:
+                creator = dataAccessor.Creator(MODEL_PORT)
+            except IOError:
+                return self._set_response(400, "{'Status':'Enpty'}")
+            try:
+                creator.createSubscription(post_data_dict)
+                return self._set_response(201, "{'Status':'Create Subscription Success'}")
+            except:
+                return self._set_response(400, "{'Status':'Wrong Format'}")
 
         else:
             logging.error("Error usage at endpoint.")
-            self._set_response(400)
-            self.wfile.write("{'Status':'Fail'}".encode('utf-8'))
-            return 400
+            return self._set_response(400, "{'Status':'Fail'}")
+
         logging.info("End of POST")
 
     def do_GET(self):
 
-        # /sensors:
-        # List all sensor currently prepairing/ready to run HTM
+        # /entities -> List house information
 
-        # /sensors/<sensorID>
-        # /sensors/<sensorID>/Info
-        # List sensor {sensorID}'s info
+        # /entities/<entityID> -> Show <entitiyID>'s detail
+        # /attrs
+        # /attrs/<attributes>
+        # /attrs/<attributes>/value
+        # ?options=keyValues
+        # ?type=House,Floor,Room
 
-        # /sensors/<sensorID>/LearningState
-        # Show sensor {sensorID}'s learning state
-        # if before swarm, return current count , ETA time or count
-        # if after swarm, return model parameter
+        # /devices/<service_group> -> List Device under <service_group>
+        # /devices/<service_group>/<deviceID> -> Show <deviceID>'s detail
+        # /devices/<service_group>/<deviceID>/model -> Show <deviceID>'s Model State
+        # /devices/<service_group>/<deviceID>/controls -> Show <deviceID>'s supported actionType and action
+        # /devices/<service_group>/<deviceID>/data -> List Sensor Data
+        # ?limit=<limit_count>
+        # ?attrs=a,b
+        
 
-        logging.info("GET request,\nPath: %s\nHeaders:\n%s\n",
-                     str(self.path), str(self.headers))
-        # TODO
-        # TODO
-        # TODO
-        # TODO
-        # TODO
+        # /subscriptions/<service_group> -> List Subscription under <service_group>
+        # /subscriptions/<service_group>/<subscriptionID> -> Show <subscriptionID>'s detail
+
+        # /service-groups -> List service-group
+        # ?<key>=<value>&
+        # /service-groups/<service_group> -> show <service_group>'s detail
+        # /service-groups/<service_group>/devices -> List Device under <service_group>
+        # /service-groups/<service_group>/subscriptions -> List Subscription under <service_group>
+
+        try:
+            viewer = dataAccessor.Viewer(MODEL_PORT)
+        except IOError:
+            return self._set_response(400, "{'Status':'Nothing To Read'}")
+        try:
+            endpoint, query = self._url_resource_parser(self.path)
+            resourceSplit = endpoint.split("/")
+            baseEndpoint = resourceSplit.pop(1)
+            additionalURL = "/".join(resourceSplit)
+        except:
+            return self._set_response(400, "{'Status':'Wrong Format'}")
+        print(baseEndpoint)
+        print(additionalURL)
+        r = -1
+        if baseEndpoint == "entities":
+            logging.info("Show entities detail")
+            r = viewer.listEntities(additionalURL, query)
+
+        elif baseEndpoint == "devices":
+            logging.info("Show devices' information")
+            r = viewer.listDevices(additionalURL, query)
+
+        elif baseEndpoint == "subscriptions":
+            logging.info("Show subscriptions' information")
+            r = viewer.listSubscriptions(additionalURL, query)
+
+        elif baseEndpoint == "service-groups":
+            logging.info("List service-group")
+            r = viewer.listServiceGroups(additionalURL, query)
+        if r == -1:
+            return self._set_response(400, "{'Status':'Wrong Use of Endpoint'}")
+        elif r == -2:
+            return self._set_response(404, "{'Status':'Service Not Found'}")
+        else:
+            return self._set_response(200, r)
 
     def do_DELETE(self):
-        # /sensors/<sensorID>
-        # Clean all sensor {sensorID} setting, include entity on fiware orion context broker and iotagent and HTM model
+        # /reset -> Reset
+        # /service-groups/<Service-Group> -> Remove <Service-Group> and <Service-Group>'s <Device>
+        # /devices/<service_group>/<deviceID> -> Remove <deviceID>
+        # /subscriptions/<service_group>/<subscriptionID> -> Remove <subscriptionID>
+        try:
+            Cleaner = dataAccessor.Cleaner(MODEL_PORT)
+        except IOError:
+            return self._set_response(400, "{'Status':'Nothing To Clean'}")
 
-        logging.info("DELETE request,\nPath: %s\nHeaders:\n%s\n",
-                     str(self.path), str(self.headers))
+        endpoint, query = self._url_resource_parser(self.path)
 
-        if str(self.path) == "/sensors":
-            logging.info("Creating new sensor entity")
-            self._set_response(201)
-            self.wfile.write("{'Status':'Create'}".encode('utf-8'))
-            # TODO
-            # TODO
-            # TODO
-            # TODO
-            # TODO
-        if str(self.path) == "/all":
-            logging.info("Clean All")
-            ret=cleanEverything.cleanAll()
-            if ret!=0:
-                self._set_response(400)
-                self.wfile.write("{'Status':'Nothing To Clean'}".encode('utf-8'))
-                return 400
-            self._set_response(201)
-            self.wfile.write("{'Status':'Clean All'}".encode('utf-8'))
+        if endpoint == None:
+            return self._set_response(400, "{'Status':'Wrong Format'}")
 
+        elif endpoint == "/reset":
+            logging.info("Reset")
+            Cleaner.reset()
+            return self._set_response(201, "{'Status':'Remove Done'}")
+        elif endpoint.find("/entities/")==0:
+            logging.info("Remove Entity")
+            try:
+                entityID=endpoint.split("/")[2]
+            except:
+                return self._set_response(400, "{'Status':'Wrong Format'}")
+            ret,msg=Cleaner.removeEntity(entityID)
+            return self._set_response(ret, msg)
+        elif endpoint.find("/devices/") == 0:
+
+            logging.info("Remove IoT Sensor")
+            try:
+                Cleaner.removeIoTSensor(endpoint.split(
+                    "/")[2], endpoint.split("/")[3])
+                return self._set_response(201, "{'Status':'Remove Done'}")
+            except:
+                return self._set_response(400, "{'Status':'Wrong Format'}")
+
+        elif endpoint.find("/service-groups/") == 0:
+            logging.info("Remove Service Group")
+            try:
+                Cleaner.removeServiceGroup(endpoint[15:])
+                return self._set_response(201, "{'Status':'Remove Done'}")
+            except:
+                return self._set_response(400, "{'Status':'Wrong Format'}")
+
+        elif endpoint.find("/subscriptions/") == 0:
+            logging.info("Remove Subscription")
+            try:
+                Cleaner.removeSubscription(
+                    endpoint.split("/")[2], endpoint.split("/")[3])
+                return self._set_response(201, "{'Status':'Remove Done'}")
+            except:
+                return self._set_response(400, "{'Status':'Wrong Format'}")
         else:
-            logging.error("Error usage at endpoint.")
-            self._set_response(400)
-            self.wfile.write("{'Status':'Fail'}".encode('utf-8'))
-            return 400
+            return self._set_response(400, "{'Status':'Error usage at endpoint.'}")
 
     def do_PATCH(self):
         # /sensors/<snesorID>/attrs/<attribute>/value
@@ -320,10 +323,28 @@ class Handler(BaseHTTPRequestHandler):
         # TODO
         # TODO
 
-    def _set_response(self, status_code):
+    def _url_resource_parser(self, url: str):
+        url = url.split("?")
+        if len(url) > 2:
+            return None, None
+        endpoint = url[0]
+        query = {}
+        if len(url) == 2:
+            try:
+                q = url[1].split("&")
+                for i in q:
+                    kv = i.split("=")
+                    query[kv[0]] = kv[1]
+            except:
+                return None, None
+        return endpoint, query
+
+    def _set_response(self, status_code, msg):
         self.send_response(status_code)
         self.send_header("Content-type", "application/json")
         self.end_headers()
+        self.wfile.write(str(msg).encode('utf-8'))
+        return status_code
 
 
 def run(server_class=ThreadingHTTPServer, handler_class=Handler, port=PORT):
@@ -331,7 +352,6 @@ def run(server_class=ThreadingHTTPServer, handler_class=Handler, port=PORT):
     server_address = (ip_address, port)
 
     httpd = server_class(server_address, handler_class)
-
     try:
         logging.info(
             "Starting httpd with PID:{pid}...\n".format(pid=os.getpid()))

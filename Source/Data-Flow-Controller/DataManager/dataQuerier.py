@@ -10,37 +10,52 @@ import socket
 import struct
 
 
-def commandIssue(sensorUID, fiware_service, action, metadata, MODEL_PORT):
-    print(sensorUID, fiware_service, action, MODEL_PORT)
+def commandIssue(fiware_service,sensorUID,post_data_dict, MODEL_PORT):
     __PATH__ = os.path.dirname(os.path.abspath(__file__))
-    with open(__PATH__+"/../Data/IoT/"+fiware_service+"/iotagent-setting.json") as f:
-        setting = json.load(f)
-    IOTA = setting["iotagent_setting"]["IOT_AGENT"]
-    r = requests.get(IOTA+"/iot/devices",
-                     headers={"fiware-service": fiware_service, 'fiware-servicepath': "/"})
-    r = r.json()["devices"]
-    attrs = None
-    for device in r:
-        if sensorUID == device["entity_name"]:
-            device_id = device["device_id"]
-            attrs = device["static_attributes"]
-            break
-    if attrs == None:
-        return 1
-
-    static_attributes = {}
-    for attr in attrs:
-        static_attributes[attr["name"]] = attr["value"]
-    data = {"value": action, "device_id": device_id, "entity_id": sensorUID,
+    try:
+        actionType = post_data_dict["actionType"]
+        action = post_data_dict["action"]
+        metadata = post_data_dict["metadata"]
+    except:
+        return -4
+    if actionType == "modelControl":
+        try:
+            with open(__PATH__+"/../Data/IoT/"+fiware_service+"/iotagent-setting.json") as f:
+                setting = json.load(f)
+        except:
+            return -3
+        
+        IOTA = setting["iotagent_setting"]["Iot-Agent-Url"]
+        header={"fiware-service": fiware_service, 'fiware-servicepath': "/"}
+        r = requests.get(IOTA+"/iot/devices/"+sensorUID,headers=header).json()
+        try:
+            entityID=r["entity_name"]
+            attrs = r["static_attributes"]
+        except:
+            return -1
+        static_attributes = {}
+        for attr in attrs:
+            static_attributes[attr["name"]] = attr["value"]
+        data = {"value": action, "device_id": sensorUID, "entity_id": entityID,
             "fiware_service": fiware_service, "metadata": metadata}
-    dataSend(__PATH__, "COMMAND", data, static_attributes, MODEL_PORT)
+        dataSend("COMMAND", data, static_attributes, MODEL_PORT)
+        return 0
+
+    elif actionType == "sensorControl":
+        pass
+        # TODO:Sensor Control
+    else:
+        return -2
+  
+    
+    
 
 
 def dataStore(data: dict, MODEL_PORT):
     __PATH__ = os.path.dirname(os.path.abspath(__file__))
     with open(__PATH__+"/../Data/IoT/"+data["fiware_service"]+"/iotagent-setting.json") as f:
         setting = json.load(f)
-    IOTA = setting["iotagent_setting"]["IOT_AGENT"]
+    IOTA = setting["iotagent_setting"]["Iot-Agent-Url"]
     r = requests.get(IOTA+"/iot/devices",
                      headers={"fiware-service": data["fiware_service"], 'fiware-servicepath': "/"})
     r = r.json()["devices"]
@@ -68,7 +83,7 @@ def dataStore(data: dict, MODEL_PORT):
         return checkResult
     elif os.path.isfile(__DEVICE_PATH__+"/postLearning"):
         statusUpdate(__DEVICE_PATH__, data)
-        sendStatus = dataSend(__PATH__, "DATA", data,
+        sendStatus = dataSend("DATA", data,
                               static_attributes, MODEL_PORT)
         if sendStatus != 0:
             checkResult.append(sendStatus)
@@ -77,7 +92,7 @@ def dataStore(data: dict, MODEL_PORT):
         dataCache(__DEVICE_PATH__, data)
         statusUpdate(__DEVICE_PATH__, data)
         if dataReady(__DEVICE_PATH__, static_attributes):
-            sendStatus = dataSend(__PATH__, "DATA", data,
+            sendStatus = dataSend("DATA", data,
                                   static_attributes, MODEL_PORT)
             if sendStatus != 0:
                 checkResult.append(sendStatus)
@@ -131,7 +146,7 @@ def dataReady(path, static_attributes):
         return True
 
 
-def dataSend(path: str, dType: str, data: dict, static_attributes: dict, MODEL_PORT):
+def dataSend(dType: str, data: dict, static_attributes: dict, MODEL_PORT):
     content = json.dumps({"dType": dType, "data": data,
                           "static_attributes": static_attributes})
     ClientSocket = socket.socket()
