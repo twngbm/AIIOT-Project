@@ -249,9 +249,14 @@ class Creator(SystemInfo):
     def __init__(self, MODEL_PORT):
         super().__init__(MODEL_PORT)
 
-    def createSubscription(self, post_data_dict):
+    def createSubscription(self, endpoint,post_data_dict):
         url = post_data_dict["url"]
-        fiware_service = post_data_dict["Service-Group"]
+        try:
+            fiware_service=endpoint.split("/")[2]
+            os.listdir(
+                self.__PATH__+"/../Data/IoT/"+fiware_service)
+        except:
+            raise KeyError
         try:
             condition = post_data_dict["Condition"]
         except:

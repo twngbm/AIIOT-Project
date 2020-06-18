@@ -170,14 +170,14 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 return self._set_response(ret, "{'Status':'Fail'}")
 
-        elif str(self.path) == "/subscription":
+        elif self.path.find("/subscription/")==0:
             logging.info("Create New Subscription")
             try:
                 creator = dataAccessor.Creator(MODEL_PORT)
             except IOError:
                 return self._set_response(400, "{'Status':'Enpty'}")
             try:
-                creator.createSubscription(post_data_dict)
+                creator.createSubscription(self.path,post_data_dict)
                 return self._set_response(201, "{'Status':'Create Subscription Success'}")
             except:
                 return self._set_response(400, "{'Status':'Wrong Format'}")
@@ -255,6 +255,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         # /reset -> Reset
+        # /entities/<entityID>
         # /service-groups/<Service-Group> -> Remove <Service-Group> and <Service-Group>'s <Device>
         # /devices/<service_group>/<deviceID> -> Remove <deviceID>
         # /subscriptions/<service_group>/<subscriptionID> -> Remove <subscriptionID>
@@ -310,6 +311,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._set_response(400, "{'Status':'Error usage at endpoint.'}")
 
     def do_PATCH(self):
+        # /entities/<entityID>/
+        # /devices/<deviceID>
+
         # /sensors/<snesorID>/attrs/<attribute>/value
         # update a sensor static_attribute with new value
 
