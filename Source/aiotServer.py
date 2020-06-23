@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import logging
 import subprocess
 import multiprocessing
@@ -12,26 +12,12 @@ from SensorManager import sensorRegister, sensorManager
 from DataManager import dataQuerier, dataAccessor
 import requests
 import time
+import signal
 
 
 PORT = 9250
 TIMEZONE = +8
 MODEL_PORT = 5000
-
-LOG_LEVEL = logging.INFO
-loglevel = os.getenv('LOG', "ERROR")
-if loglevel == "DEBUG":
-    LOG_LEVEL = logging.DEBUG
-elif loglevel == "INFO":
-    LOG_LEVEL = logging.INFO
-elif loglevel == "WARNING":
-    LOG_LEVEL = logging.WARNING
-elif loglevel == "ERROR":
-    LOG_LEVEL = logging.ERROR
-elif loglevel == "CRITICAL":
-    LOG_LEVEL = logging.CRITICAL
-else:
-    LOG_LEVEL = logging.ERROR
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -356,39 +342,63 @@ class Handler(BaseHTTPRequestHandler):
         return status_code
 
 
-def run(server_class=ThreadingHTTPServer, handler_class=Handler, port=PORT):
+def run(server_class=HTTPServer, handler_class=Handler, port=PORT):
     ip_address = socket.gethostbyname(socket.gethostname())
     server_address = (ip_address, port)
 
     httpd = server_class(server_address, handler_class)
     try:
-        logging.info(
-            "Starting httpd with PID:{pid}...\n".format(pid=os.getpid()))
         httpd.serve_forever()
     except KeyboardInterrupt:
-        logging.critical("Catch KeyboardInterrupt")
-    httpd.server_close()
-    logging.info("Stopping httpd...\n")
+        httpd.server_close()
+        logging.info("Stopping httpd...\n")
 
 
 def init():
-
+    pass
+    loglevel = os.getenv('LOG', "ERROR")
+    if loglevel == "DEBUG":
+        LOG_LEVEL = logging.DEBUG
+    elif loglevel == "INFO":
+        LOG_LEVEL = logging.INFO
+    elif loglevel == "WARNING":
+        LOG_LEVEL = logging.WARNING
+    elif loglevel == "ERROR":
+        LOG_LEVEL = logging.ERROR
+    elif loglevel == "CRITICAL":
+        LOG_LEVEL = logging.CRITICAL
+    else:
+        LOG_LEVEL = logging.ERROR
+    logging.basicConfig(level=LOG_LEVEL)
+    logging.info("MAIN:START {pid}".format(pid=os.getpid()))
+    """
     from ModelManager import modelEntrance
     pid = os.fork()
     if pid == 0:
-
         MEprocess = multiprocessing.Process(
             None, target=modelEntrance.modelEntrance, args=(MODEL_PORT, LOG_LEVEL,))
-
         MEprocess.start()
         MEprocess.join()
-        # p=subprocess.Popen(["python3.7",__PATH__+"/ModelManager/modelEntrance.py"])
-        # p.wait()
     else:
         return 0
+    """
 
+def handle_sigchld(signum, frame):
+    try:
+        while True:
+            cpid, status = os.waitpid(-1, os.WNOHANG)
+            if cpid == 0:
+                break
+            exitcode = status >> 8
+            logging.info('MAIN:EXIT %s with exit code %s',
+                         cpid, exitcode)
+    except OSError as e:
+        pass
+def handle_sigterm(*args):
+    raise KeyboardInterrupt()
 
 if __name__ == "__main__":
-    logging.basicConfig(level=LOG_LEVEL)
+    signal.signal(signal.SIGCHLD, handle_sigchld)
+    signal.signal(signal.SIGTERM, handle_sigterm)
     init()
     run()

@@ -65,7 +65,7 @@
 
 <property>
   <name>nupic.cluster.database.host</name>
-  <value>aiot-MySQL</value>
+  <value>192.168.0.110</value>
   <description>Name of the machine running the MySQL database server</description>
 </property>
 
