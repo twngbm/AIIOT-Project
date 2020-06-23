@@ -1,6 +1,5 @@
 import os
 import json
-import multiprocessing
 from nupic.frameworks.opf import model
 from nupic.frameworks.opf.model_factory import ModelFactory
 from nupic.algorithms import anomaly_likelihood

@@ -186,7 +186,7 @@ class Cleaner(SystemInfo):
         entityID = r["entity_name"]
 
         data = {'actionType': "modelControl",
-                'action': "Stop",
+                'action': "Remove",
                 "metadata": None
                 }
         dataQuerier.commandIssue(

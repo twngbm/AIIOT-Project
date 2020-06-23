@@ -4,12 +4,10 @@ import time
 import json
 import logging
 from datetime import datetime
-import select
 from DataManager import dataPreprocesser
-import socket
 import struct
 from ModelManager import modelEntrance
-import multiprocessing
+
 
 __GLOBAL_THREADHOLD__ = 0.7
 def commandIssue(fiware_service,sensorUID,post_data_dict, MODEL_PORT):
@@ -150,17 +148,3 @@ def dataSend(dType: str, data: dict, static_attributes: dict, MODEL_PORT):
                           "static_attributes": static_attributes}
     modelEntrance.modelPortal(message,__GLOBAL_THREADHOLD__)
     return 0
-    process=multiprocessing.Process(
-        None,target=modelEntrance.modelPortal,args=(message,__GLOBAL_THREADHOLD__,)
-    )
-    process.start()
-    """
-    content = json.dumps(message)
-    ClientSocket = socket.socket()
-    try:
-        ClientSocket.connect(('localhost', MODEL_PORT))
-    except:
-        return 3
-    ClientSocket.send(content.encode("utf8"))
-    ClientSocket.close()
-    """

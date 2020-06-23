@@ -1,40 +1,4 @@
-# Stage1:Choose model
-# 1. HTM
-# 2. ...
-
-# Stage2:Choose model operation
-# 1. Prepare model (Prepare a model to be ready for setup and train)
-# 2. Pretrain model (Setup model for traning)
-# 3. Traing model (Train a model)
-# 4. Online model (Make a trained model run forever)
-# 5. Stop model
-# 6. Save model
-# 7. Use model (Select a running and trained model to make prediction)
-# 8. Clean model
-
-# Stage3:Wait model opreation finished, choose next model opreation or go to next Stage.
-
-# Stage4:Save model prediction and/or exit.
-
-# from modelRepo import *
-# from DataManager import dataAccessor
-# model=modelRepo["targetModel"]
-# if model not EXIST:
-#   model.Prepare()
-# if model not TRAIN or RETRAIN INTERVAL:
-#   model.Pretrain()
-#   model.Train()
-# if model not RUN or STOP:
-#   model.Online()
-# if SAVE INTERVAL:
-#   model.Save()
-# pred=model.Use()
-#
-# if pred is anomaly:
-#   messageManger.send(warning)
-#
-# dataAccessor(pred)
-
+from DataManager import dataAccessor
 import os
 import json
 import datetime
@@ -51,7 +15,7 @@ current_dir = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
 parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
-from DataManager import dataAccessor
+
 
 class ModelCommand:
     def __init__(self, data: dict):
@@ -157,9 +121,6 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
             return 0
 
         elif Data.data.action == "Remove":
-            if Model.isOnline:
-                Model.Sleep()
-                time.sleep(1)
             if Model.isExist:
                 Model.Remove()
                 Path(__SENSORDIR__+"preLearning").touch()
@@ -247,17 +208,10 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 Model.Reset()
             Model.Pretrain()  # Set up model to be ready for train
 
-            TrainOutput = Model.Train()  # Train Model
+            Model.Train()  # Train Model
             # Train Should Implement Save By it Own
             # Save in Train should generate same file formate as Model.save
             # And Can be loaded by Model.Load without difference.
-
-            if os.path.isfile(TrainOutput):
-                # If model has generate output during traing,write it back to cratedb
-                # Output file must contain the following columns:
-                # [timestamp,value,prediction,anomaly_score,anomaly_likelihood,Log_anomaly_likelihood]
-                dataAccessor.trainoutputWriteback(TrainOutput, Data,
-                                                  __GLOBAL_THREADHOLD__)
 
             Model.TrainCleanup()  # Optional Clean Up File generated during model traning
 
@@ -275,7 +229,7 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 except:
                     pass
                 return 0
-                
+
         if not Model.isOnline:
             logging.info("Model Bootup Start")
             Path(__SENSORDIR__+"inLearning").touch()
@@ -285,7 +239,7 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 pass
 
             Model.Load()
-            Model.Recovery()  
+            Model.Recovery()
             # There Should be only two situtation that will come in this code
             # block, After Train and After AIOT-DFC Restart
             # 1. After Train.

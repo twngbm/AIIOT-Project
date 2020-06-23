@@ -3,8 +3,6 @@ import os
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import logging
-import subprocess
-import multiprocessing
 import socket
 import SystemManager
 from SystemManager import initFiware, initIotagent
@@ -371,17 +369,6 @@ def init():
         LOG_LEVEL = logging.ERROR
     logging.basicConfig(level=LOG_LEVEL)
     logging.info("MAIN:START {pid}".format(pid=os.getpid()))
-    """
-    from ModelManager import modelEntrance
-    pid = os.fork()
-    if pid == 0:
-        MEprocess = multiprocessing.Process(
-            None, target=modelEntrance.modelEntrance, args=(MODEL_PORT, LOG_LEVEL,))
-        MEprocess.start()
-        MEprocess.join()
-    else:
-        return 0
-    """
 
 def handle_sigchld(signum, frame):
     try:
@@ -390,10 +377,12 @@ def handle_sigchld(signum, frame):
             if cpid == 0:
                 break
             exitcode = status >> 8
-            logging.info('MAIN:EXIT %s with exit code %s',
-                         cpid, exitcode)
+            logging.info('-------MAIN:Process '+str(cpid) +
+                         ' EXIT with exit code ' + str(exitcode)+'-------')
     except OSError as e:
         pass
+
+
 def handle_sigterm(*args):
     raise KeyboardInterrupt()
 

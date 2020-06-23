@@ -1,4 +1,3 @@
-import multiprocessing
 from DataManager import dataAccessor
 import os
 import subprocess
@@ -7,7 +6,6 @@ import time
 import logging
 import sys
 import inspect
-import select
 import struct
 import datetime
 import re
@@ -127,19 +125,29 @@ class model:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
+        swarmpid = swarm.pid
+        Path(self.__WORKDIR__ +
+             "HTM-{pid}.pid".format(pid=swarmpid)).touch()
         while True:
             state = swarm.poll()
             if state != None:
                 logging.info("PreTrain Exit Code:"+str(state))
+                os.unlink(self.__WORKDIR__ +
+                          "HTM-{pid}.pid".format(pid=swarmpid))
                 break
             time.sleep(1)
         if state != 0:
             raise RuntimeError
-        os.unlink(self.__WORKDIR__+"permutations.py")
-        os.unlink(self.__WORKDIR__+"description.py")
-        os.unlink(self.__WORKDIR__+"description.pyc")
-        os.unlink(self.__WORKDIR__+"default_Report.csv")
-        os.system("rm "+self.__WORKDIR__+"default_HyperSearchJobID.pkl")
+        removeList=[self.__WORKDIR__+"permutations.py",
+                    self.__WORKDIR__+"description.py",
+                    self.__WORKDIR__+"description.pyc",
+                    self.__WORKDIR__+"default_Report.csv",
+                    self.__WORKDIR__+"default_HyperSearchJobID.pkl"]
+        for dropPy in removeList:
+            try:
+                os.unlink(dropPy)
+            except:
+                pass
         os.system("mv "+self.__WORKDIR__ +
                   "model_0/model_params.py "+self.__WORKDIR__)
         os.system("rm -r "+self.__WORKDIR__+"model_0")
@@ -147,19 +155,25 @@ class model:
     def Train(self):
 
         train = subprocess.Popen(["python2.7", self.__WORKDIR__+"train.py"])
+        trainpid = train.pid
+        Path(self.__WORKDIR__ +
+             "HTM-{pid}.pid".format(pid=trainpid)).touch()
         while True:
             state = train.poll()
             if state != None:
                 logging.info("Train Exist Code:"+str(state))
+                os.unlink(self.__WORKDIR__ +
+                          "HTM-{pid}.pid".format(pid=trainpid))
                 break
             time.sleep(1)
         if state != 0:
             raise RuntimeError
 
-        return self.__SENSORDIR__+"trainoutput.csv"
+        self.TrainOutput = self.__SENSORDIR__+"trainoutput.csv"
 
     def TrainCleanup(self):
-
+        dataAccessor.trainoutputWriteback(self.TrainOutput, self.Data,
+                                          self.__GLOBAL_THREADHOLD__)
         os.unlink(self.__SENSORDIR__+"trainoutput.csv")
 
     def Load(self):
@@ -206,6 +220,9 @@ class model:
         os.close(writer)
 
     def Recovery(self):
+        recoverypid = os.getpid()
+        Path(self.__WORKDIR__ +
+                 "HTM-{pid}.pid".format(pid=recoverypid)).touch()
 
         with open(self.__WORKDIR__+"localnewest.tmp", "r") as f:
             data = f.read().split(",")[1]
@@ -244,6 +261,8 @@ class model:
         time.sleep(1)
         logging.info("Post Cleanup Start.")
         self.__CleanupPostUnprocessData__(currentTime)
+        os.unlink(self.__WORKDIR__ +
+                  "HTM-{pid}.pid".format(pid=recoverypid))
 
     def Sleep(self):
         dirl = os.listdir(self.__WORKDIR__)
@@ -255,11 +274,11 @@ class model:
         for pid in pidfile:
             try:
                 os.kill(pid, 9)
+                os.unlink(self.__WORKDIR__+pidfile[pid])
             except ProcessLookupError:
                 pass
             finally:
                 logging.info("Kill Process with pid:{pid}".format(pid=pid))
-            os.unlink(self.__WORKDIR__+pidfile[pid])
         Path(self.__WORKDIR__+"modelInactive").touch()
         self.isOnline = False
 
@@ -302,6 +321,7 @@ class model:
 
     def Reset(self):
         try:
+            self.Sleep()
             shutil.rmtree(self.__WORKDIR__)
         except:
             pass
@@ -313,7 +333,11 @@ class model:
         self.isTrained = False
 
     def Remove(self):
-        shutil.rmtree(self.__WORKDIR__)
+        try:
+            self.Sleep()
+            shutil.rmtree(self.__WORKDIR__)
+        except:
+            pass
         self.isExist = False
         self.isTrained = False
 
