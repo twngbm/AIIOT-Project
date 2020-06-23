@@ -1,0 +1,10 @@
+/Source/Data-Flow-Controller/Data/
+Dataset/
+nupic/
+**/.ipynb_checkpoints/
+**/__pycache__/
+**/.vscode/
+/.gitignore
+**/.git/
+/Document/
+
