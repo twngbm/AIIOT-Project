@@ -10,7 +10,9 @@ from ModelManager import modelEntrance
 
 
 __GLOBAL_THREADHOLD__ = 0.7
-def commandIssue(fiware_service,sensorUID,post_data_dict, MODEL_PORT):
+
+
+def commandIssue(fiware_service, sensorUID, post_data_dict, MODEL_PORT):
     __PATH__ = os.path.dirname(os.path.abspath(__file__))
     try:
         actionType = post_data_dict["actionType"]
@@ -24,12 +26,12 @@ def commandIssue(fiware_service,sensorUID,post_data_dict, MODEL_PORT):
                 setting = json.load(f)
         except:
             return -3
-        
+
         IOTA = setting["iotagent_setting"]["Iot-Agent-Url"]
-        header={"fiware-service": fiware_service, 'fiware-servicepath': "/"}
-        r = requests.get(IOTA+"/iot/devices/"+sensorUID,headers=header).json()
+        header = {"fiware-service": fiware_service, 'fiware-servicepath': "/"}
+        r = requests.get(IOTA+"/iot/devices/"+sensorUID, headers=header).json()
         try:
-            entityID=r["entity_name"]
+            entityID = r["entity_name"]
             attrs = r["static_attributes"]
         except:
             return -1
@@ -37,7 +39,7 @@ def commandIssue(fiware_service,sensorUID,post_data_dict, MODEL_PORT):
         for attr in attrs:
             static_attributes[attr["name"]] = attr["value"]
         data = {"value": action, "device_id": sensorUID, "entity_id": entityID,
-            "fiware_service": fiware_service, "metadata": metadata}
+                "fiware_service": fiware_service, "metadata": metadata}
         dataSend("COMMAND", data, static_attributes, MODEL_PORT)
         return 0
 
@@ -46,8 +48,8 @@ def commandIssue(fiware_service,sensorUID,post_data_dict, MODEL_PORT):
         # TODO:Sensor Control
     else:
         return -2
-  
-    
+
+
 def dataStore(data: dict, MODEL_PORT):
     __PATH__ = os.path.dirname(os.path.abspath(__file__))
     with open(__PATH__+"/../Data/IoT/"+data["fiware_service"]+"/iotagent-setting.json") as f:
@@ -144,7 +146,7 @@ def dataReady(path, static_attributes):
 
 
 def dataSend(dType: str, data: dict, static_attributes: dict, MODEL_PORT):
-    message={"dType": dType, "data": data,
-                          "static_attributes": static_attributes}
-    modelEntrance.modelPortal(message,__GLOBAL_THREADHOLD__)
+    message = {"dType": dType, "data": data,
+               "static_attributes": static_attributes}
+    modelEntrance.modelPortal(message, __GLOBAL_THREADHOLD__)
     return 0

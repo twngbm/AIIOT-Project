@@ -210,7 +210,6 @@ class model:
                 raise IOError
 
     def Save(self):
-        # print("HERE")
         writer = os.open(self.__WORKDIR__+"input.pipe",
                          os.O_WRONLY | os.O_NONBLOCK)
         msg = "SAVE"

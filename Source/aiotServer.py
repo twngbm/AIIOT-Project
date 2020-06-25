@@ -262,13 +262,27 @@ class Handler(BaseHTTPRequestHandler):
             Cleaner.reset()
             return self._set_response(201, "{'Status':'Remove Done'}")
         elif endpoint.find("/entities/") == 0:
-            logging.info("Remove Entity")
             try:
-                entityID = endpoint.split("/")[2]
+                if endpoint.split("/")[3] == "attrs":
+                    try:
+                        logging.info("Remove Entity's attributes")
+                        entityID = endpoint.split("/")[2]
+                        attrName = endpoint.split("/")[4]
+                        retcode, rettext = Cleaner.removeEntityAttr(
+                            entityID, attrName)
+                        return self._set_response(retcode, rettext)
+                    except:
+                        return self._set_response(400, "{'Status':'Wrong Format'}")
+                else:
+                    return self._set_response(400, "{'Status':'Error usage at endpoint.'}")
             except:
-                return self._set_response(400, "{'Status':'Wrong Format'}")
-            ret, msg = Cleaner.removeEntity(entityID)
-            return self._set_response(ret, msg)
+                logging.info("Remove Entity")
+                try:
+                    entityID = endpoint.split("/")[2]
+                except:
+                    return self._set_response(400, "{'Status':'Wrong Format'}")
+                ret, msg = Cleaner.removeEntity(entityID)
+                return self._set_response(ret, msg)
         elif endpoint.find("/devices/") == 0:
 
             logging.info("Remove IoT Sensor")
@@ -301,20 +315,31 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PATCH(self):
         # /entities/<entityID>/
-        # /devices/<deviceID>
+        try:
+            content_length = int(self.headers['Content-Length'])
+        except:
+            return self._set_response(400, "{'Status':'No Data Input'}")
+        post_data = self.rfile.read(content_length).decode('utf-8')
+        try:
+            post_data_dict = json.loads(post_data)
+        except:
+            return self._set_response(400, "{'Status':'Wrong Data Format'}")
+        try:
+            updater = dataAccessor.Updater(MODEL_PORT)
+        except IOError:
+            return self._set_response(400, "{'Status':'Nothing To Update'}")
 
-        # /sensors/<snesorID>/attrs/<attribute>/value
-        # update a sensor static_attribute with new value
-
-        # /sensors/<snesorID>/HTM_Model/<attribute>/value
-        # update a sensor HTM model with new value
-        logging.info("PATCH request,\nPath: %s\nHeaders:\n%s\n",
-                     str(self.path), str(self.headers))
-        # TODO
-        # TODO
-        # TODO
-        # TODO
-        # TODO
+        endpoint, query = self._url_resource_parser(self.path)
+        if endpoint.find("/entities/") == 0:
+            logging.info("Update entity attributes")
+            try:
+                retcode, rettext = updater.updateEntity(
+                    endpoint.split("/")[2], post_data_dict)
+                return self._set_response(retcode, rettext)
+            except:
+                return self._set_response(400, "{'Status':'Wrong Format'}")
+        else:
+            return self._set_response(400, "{'Status':'Error usage at endpoint.'}")
 
     def _url_resource_parser(self, url: str):
         url = url.split("?")
@@ -370,6 +395,7 @@ def init():
     logging.basicConfig(level=LOG_LEVEL)
     logging.info("MAIN:START {pid}".format(pid=os.getpid()))
 
+
 def handle_sigchld(signum, frame):
     try:
         while True:
@@ -385,6 +411,7 @@ def handle_sigchld(signum, frame):
 
 def handle_sigterm(*args):
     raise KeyboardInterrupt()
+
 
 if __name__ == "__main__":
     signal.signal(signal.SIGCHLD, handle_sigchld)

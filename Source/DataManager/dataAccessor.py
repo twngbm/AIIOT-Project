@@ -234,6 +234,11 @@ class Cleaner(SystemInfo):
         r = requests.delete(self.ORION+"/v2/entities/" + entityID)
         return r.status_code, r.text
 
+    def removeEntityAttr(self, entityID, attr):
+        r = requests.delete(self.ORION+"/v2/entities/" +
+                            entityID+"/attrs/"+attr)
+        return r.status_code, r.text
+
     def reset(self):
         for sg in self.sg_tree:
             self.removeServiceGroup(sg)
@@ -281,6 +286,23 @@ class Creator(SystemInfo):
 class Updater(SystemInfo):
     def __init__(self, MODEL_PORT):
         super().__init__(MODEL_PORT)
+
+    def updateEntity(self, entityID, attrs):
+        header = {'Content-Type': 'application/json'}
+        actionType = attrs.pop("actionType", None)
+        data = {}
+        if actionType == "update":
+            data["actionType"] = "append"
+        elif actionType == "append":
+            data["actionType"] = "append_strict"
+        else:
+            return 400, "{'Status':'Wrong Data Format'}"
+        data["entities"] = [{"id": entityID}]
+        for attr in attrs:
+            data["entities"][0][attr] = attrs[attr]
+        r = requests.post(self.ORION+"/v2/op/update",
+                          headers=header, data=json.dumps(data))
+        return r.status_code, r.text
 
 
 class Viewer(SystemInfo):
