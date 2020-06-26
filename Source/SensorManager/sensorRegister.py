@@ -80,8 +80,6 @@ class Device():
         attribute = [{"object_id": measurement, "name": "count", "type": data_type},
                      {"object_id": "TS", "name": "timestamp", "type": "DateTime"}]
 
-        logging.info("Start create device on "+str(IOTA) +
-                     " with device_id: "+str(device_id))
 
         static_attributes = [{"name": "sensorName", "type": "Text", "value": sensor_name},
                              {"name": "fieldName", "type": "Text",
@@ -132,7 +130,6 @@ class Device():
         r = requests.post(IOTA+"/iot/devices", headers=header,
                           data=json.dumps(data))
 
-        logging.info(str(r.status_code)+str(r.text))
         if r.status_code == 201:
             os.mkdir(self.__PATH__+"/../Data/IoT/"+fiware_service+"/"+device_id)
             with open(self.__PATH__+"/../Data/IoT/"+fiware_service+"/"+device_id+"/localdata.tmp", "w+") as f:

@@ -113,8 +113,9 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
     )
 
     if Data.dType == "COMMAND":
-        logging.info("Model Entrance Receive Command:{action}".format(
-            action=Data.data.action))
+        logging.info("{iota}/{device} Receive Command:{action}".format(
+            action=Data.data.action, iota=Data.data.fiware_service, device=Data.data.deviceID))
+
         if Data.data.action == "Sleep":
             if Model.isOnline:
                 Model.Sleep()
@@ -132,7 +133,8 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                     os.unlink(__SENSORDIR__+"inLearning")
                 except:
                     pass
-            logging.info("Romove Done")
+            logging.info("{iota}/{device} Romove Done".format(
+                iota=Data.data.fiware_service, device=Data.data.deviceID))
             return 0
 
         elif Data.data.action == "Reset":
@@ -150,13 +152,15 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                     os.unlink(__SENSORDIR__+"inLearning")
                 except:
                     pass
-            logging.info("Reset Done")
+            logging.info("{iota}/{device} Reset Done".format(
+                iota=Data.data.fiware_service, device=Data.data.deviceID))
             return 0
 
         elif Data.data.action == "Save":
             if Model.isOnline:
                 Model.Save()
-            logging.info("Save Done")
+            logging.info("{iota}/{device} Save Done".format(
+                iota=Data.data.fiware_service, device=Data.data.deviceID))
             return 0
 
         elif Data.data.action == "Train":
@@ -170,15 +174,15 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
         elif Data.data.action == "Wake":
             if Model.isExist and Model.isTrained:
                 wakeFlag = True
-        logging.info("Command process end")
 
     if (Data.dType == "DATA" and not Model.isSafeStop) or trainFlag or wakeFlag:
         if Data.dType == "DATA":
-            logging.info("Model Entrance Receive Data:\nValue:{value}\nTimestamp:{timeidx}".format(
-                value=Data.data.value, timeidx=Data.data.timestamp))
+            logging.info("{iota}/{device} Receive Data T:{timeidx},V:{value}".format(
+                timeidx=Data.data.timestamp, value=Data.data.value, iota=Data.data.fiware_service, device=Data.data.deviceID))
 
         if not Model.isExist:
-            logging.info("Model Prepare")
+            logging.info("{iota}/{device} Model Prepare Start".format(
+                iota=Data.data.fiware_service, device=Data.data.deviceID))
             Path(__SENSORDIR__+"inLearning").touch()
             try:
                 os.unlink(__SENSORDIR__+"preLearning")
@@ -190,9 +194,11 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 pass
 
             Model.Prepare()  # Prepare, copy model dependence file to data folder
-            logging.info("Model Prepare Done")
+            logging.info("{iota}/{device} Model Prepare Done".format(
+                iota=Data.data.fiware_service, device=Data.data.deviceID))
         if not Model.isTrained or Model.isRetrainPeriod:
-            logging.info("Model Train")
+            logging.info("{iota}/{device} Model Train Start".format(
+                iota=Data.data.fiware_service, device=Data.data.deviceID))
             Path(__SENSORDIR__+"inLearning").touch()
             try:
                 os.unlink(__SENSORDIR__+"postLearning")
@@ -220,7 +226,8 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 os.unlink(__SENSORDIR__+"counter.tmp")
             except:
                 pass
-            logging.info("Model Train Done")
+            logging.info("{iota}/{device} Model Train Done".format(
+                iota=Data.data.fiware_service, device=Data.data.deviceID))
 
             if trainFlag:
                 Path(__SENSORDIR__+"postLearning").touch()
@@ -231,7 +238,8 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 return 0
 
         if not Model.isOnline:
-            logging.info("Model Bootup Start")
+            logging.info("{iota}/{device} Model Bootup Start".format(
+                iota=Data.data.fiware_service, device=Data.data.deviceID))
             Path(__SENSORDIR__+"inLearning").touch()
             try:
                 os.unlink(__SENSORDIR__+"postLearning")
@@ -268,11 +276,13 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
             except:
                 pass
             Path(__SENSORDIR__+"postLearning").touch()
-            logging.info("Model Bootup Done")
+            logging.info("{iota}/{device} Model Bootup Done".format(
+                iota=Data.data.fiware_service, device=Data.data.deviceID))
             return 0
         if Model.isSavePeriod:
             Model.Save()
-            logging.info("Save Done")
+            logging.info("{iota}/{device} Model Save Done".format(
+                iota=Data.data.fiware_service, device=Data.data.deviceID))
         timestamp, value, prediction, anomaly, metadata = Model.Use(
             Data.data.value, Data.data.timestamp)  # Use model to generate real time prediction
         if anomaly == True:
@@ -282,6 +292,4 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
             pass
         dataAccessor.resultWriteback(
             timestamp, value, prediction, anomaly, metadata, Data)
-
-        logging.info("Data Process End")
         return 0

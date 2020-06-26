@@ -67,19 +67,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._set_response(200, "")
 
             else:
-
-                # TODO: Anomaly Raise
-                # TODO
-                # TODO
-                # TODO
-                # TODO
-                # TODO
-                # Signal Apache
                 msg = "{'Status':'Error occured.','ErrorCode':"+str(result)+"}"
                 return self._set_response(409, msg)
         elif str(self.path).find("/devices") == 0:
             if self.path.split("/")[-1] == "controls":
-                logging.info("Command")
 
                 resourceSplit = self.path.split("/")
                 try:
@@ -103,7 +94,6 @@ class Handler(BaseHTTPRequestHandler):
                     return self._set_response(400, "{'Status':'Wrong Format'}")
 
             elif self.path.split("/")[-1] == "devices":
-                logging.info("Creating new sensor entity")
 
                 device = sensorRegister.Device()
 
@@ -130,7 +120,6 @@ class Handler(BaseHTTPRequestHandler):
                 return self._set_response(400, "{'Status':'Error Usage at Endpoint'}")
         elif str(self.path).find("/entities") == 0:
 
-            logging.info("Create Entities")
 
             ret = initFiware.createEntity(post_data_dict)
 
@@ -143,7 +132,6 @@ class Handler(BaseHTTPRequestHandler):
             elif ret == 0:
                 return self._set_response(201, "{'Status':'Create'}")
         elif str(self.path) == "/service-groups":
-            logging.info("Initializing Service Group")
 
             IotAgent = initIotagent.IotAgent()
 
@@ -162,7 +150,6 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 return self._set_response(ret, "{'Status':'Fail'}")
         elif self.path.find("/subscriptions/") == 0:
-            logging.info("Create New Subscription")
             try:
                 creator = dataAccessor.Creator(MODEL_PORT)
             except IOError:
@@ -174,10 +161,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._set_response(400, "{'Status':'Wrong Format'}")
 
         else:
-            logging.error("Error usage at endpoint.")
             return self._set_response(400, "{'Status':'Fail'}")
-
-        logging.info("End of POST")
 
     def do_GET(self):
 
@@ -220,19 +204,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._set_response(400, "{'Status':'Wrong Format'}")
         r = -1
         if baseEndpoint == "entities":
-            logging.info("Show entities detail")
             r = viewer.listEntities(additionalURL, query)
 
         elif baseEndpoint == "devices":
-            logging.info("Show devices' information")
             r = viewer.listDevices(additionalURL, query)
 
         elif baseEndpoint == "subscriptions":
-            logging.info("Show subscriptions' information")
             r = viewer.listSubscriptions(additionalURL, query)
 
         elif baseEndpoint == "service-groups":
-            logging.info("List service-group")
             r = viewer.listServiceGroups(additionalURL, query)
         if r == -1:
             return self._set_response(400, "{'Status':'Wrong Use of Endpoint'}")
@@ -258,14 +238,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._set_response(400, "{'Status':'Wrong Format'}")
 
         elif endpoint == "/reset":
-            logging.info("Reset")
             Cleaner.reset()
             return self._set_response(201, "{'Status':'Remove Done'}")
         elif endpoint.find("/entities/") == 0:
             try:
                 if endpoint.split("/")[3] == "attrs":
                     try:
-                        logging.info("Remove Entity's attributes")
                         entityID = endpoint.split("/")[2]
                         attrName = endpoint.split("/")[4]
                         retcode, rettext = Cleaner.removeEntityAttr(
@@ -276,7 +254,6 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     return self._set_response(400, "{'Status':'Error usage at endpoint.'}")
             except:
-                logging.info("Remove Entity")
                 try:
                     entityID = endpoint.split("/")[2]
                 except:
@@ -284,8 +261,6 @@ class Handler(BaseHTTPRequestHandler):
                 ret, msg = Cleaner.removeEntity(entityID)
                 return self._set_response(ret, msg)
         elif endpoint.find("/devices/") == 0:
-
-            logging.info("Remove IoT Sensor")
             try:
                 Cleaner.removeIoTSensor(endpoint.split(
                     "/")[2], endpoint.split("/")[3])
@@ -294,7 +269,6 @@ class Handler(BaseHTTPRequestHandler):
                 return self._set_response(400, "{'Status':'Wrong Format'}")
 
         elif endpoint.find("/service-groups/") == 0:
-            logging.info("Remove Service Group")
             try:
                 Cleaner.removeServiceGroup(endpoint.split(
                     "/")[2])
@@ -303,7 +277,6 @@ class Handler(BaseHTTPRequestHandler):
                 return self._set_response(400, "{'Status':'Wrong Format'}")
 
         elif endpoint.find("/subscriptions/") == 0:
-            logging.info("Remove Subscription")
             try:
                 Cleaner.removeSubscription(
                     endpoint.split("/")[2], endpoint.split("/")[3])
@@ -331,7 +304,6 @@ class Handler(BaseHTTPRequestHandler):
 
         endpoint, query = self._url_resource_parser(self.path)
         if endpoint.find("/entities/") == 0:
-            logging.info("Update entity attributes")
             try:
                 retcode, rettext = updater.updateEntity(
                     endpoint.split("/")[2], post_data_dict)
@@ -363,18 +335,20 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(str(msg).encode('utf-8'))
         return status_code
-
+    def log_message(self, format, *args):
+        infolist=args[0].split(" ")
+        logging.info(self.address_string()+" "+infolist[0]+" On {"+infolist[1]+"}")
+        return
 
 def run(server_class=HTTPServer, handler_class=Handler, port=PORT):
     ip_address = socket.gethostbyname(socket.gethostname())
     server_address = (ip_address, port)
-
     httpd = server_class(server_address, handler_class)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         httpd.server_close()
-        logging.info("Stopping httpd...\n")
+        logging.critical("AIOT CORE STOP")
 
 
 def init():
@@ -392,8 +366,11 @@ def init():
         LOG_LEVEL = logging.CRITICAL
     else:
         LOG_LEVEL = logging.ERROR
-    logging.basicConfig(level=LOG_LEVEL)
-    logging.info("MAIN:START {pid}".format(pid=os.getpid()))
+
+    formatter = '| %(levelname)s | %(asctime)s | %(process)d | %(message)s |'
+    logging.basicConfig(level=LOG_LEVEL,format=formatter,datefmt="%Y-%m-%d %H:%M:%S")
+    
+    logging.critical("AIOT CORE START")
 
 
 def handle_sigchld(signum, frame):
@@ -403,7 +380,7 @@ def handle_sigchld(signum, frame):
             if cpid == 0:
                 break
             exitcode = status >> 8
-            logging.info('-------MAIN:Process '+str(cpid) +
+            logging.info('\n|-------'+str(cpid) +
                          ' EXIT with exit code ' + str(exitcode)+'-------')
     except OSError as e:
         pass

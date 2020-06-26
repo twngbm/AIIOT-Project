@@ -24,19 +24,19 @@ def modelPortal(msg, __GLOBAL_THREADHOLD__):
 
     fulldata = dataDecoder(msg)
     if fulldata.dType == "DATA":
-        logging.info("Get Data with Timestamp: "+str(fulldata.data.timestamp) +
-                     " and value: "+str(fulldata.data.value))
+        logging.info("DATA T: "+str(fulldata.data.timestamp) +
+                     ",V: "+str(fulldata.data.value))
     else:
-        logging.info("Get Command at Times: "+str(datetime.datetime.now().time()) +
-                     " and action: "+str(fulldata.data.action))
+        logging.info("COMMAND T: "+str(datetime.datetime.now().time()) +
+                     ",V: "+str(fulldata.data.action))
 
     if fulldata == None:
         raise KeyError
 
     pid=os.fork()
     if pid==0:
-        logging.info(
-            "-------MDET:Process {pid} Start-------".format(pid=os.getpid()))
+        logging.info('\n|---------------'+str(os.getpid()) +
+                     ' START---------------')
         commonIF.modelHandler(fulldata, __GLOBAL_THREADHOLD__)
         os._exit(0)
     else:

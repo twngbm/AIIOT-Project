@@ -90,7 +90,7 @@ def dataStore(data: dict, MODEL_PORT):
     elif os.path.isfile(__DEVICE_PATH__+"/preLearning"):
         dataCache(__DEVICE_PATH__, data)
         statusUpdate(__DEVICE_PATH__, data)
-        if dataReady(__DEVICE_PATH__, static_attributes):
+        if dataReady(__DEVICE_PATH__, static_attributes, data["fiware_service"], device_id):
             sendStatus = dataSend("DATA", data,
                                   static_attributes, MODEL_PORT)
             if sendStatus != 0:
@@ -130,15 +130,16 @@ def dataCache(__DEVICE_PATH__, data):
         ld.write(str(value+","+str(timestamp)+"\n"))
 
 
-def dataReady(path, static_attributes):
+def dataReady(path, static_attributes, iota, deviceID):
     targetTime = float(static_attributes["targetTime"])
     timeResolution = float(static_attributes["timeResolution"])
 
     targetCount = targetTime/timeResolution
     with open(path+"/counter.tmp", "r") as c:
         count = int(c.read())
-    msg = path+"\nCount:"+str(count)+","+str(int((count/targetCount)*100))+"%"
-    logging.info("Sensor At "+msg)
+    msg = str(iota)+"/"+str(deviceID)+" Data Amount:" + \
+        str(count)+","+str(int((count/targetCount)*100))+"%"
+    logging.info(msg)
     if targetCount > count:
         return False
     else:

@@ -82,7 +82,7 @@ def writeToCratedb(
         )
         result = cursor.fetchall()
         if len(result) == 0:
-            logging.warning("CrateDB Entity Cannot Found, Retry...")
+            logging.warning("CrateDB Entity Not Found, Retrying")
             time.sleep(1)
         else:
             break

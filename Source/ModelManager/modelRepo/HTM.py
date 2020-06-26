@@ -126,23 +126,26 @@ class model:
             stderr=subprocess.DEVNULL
         )
         swarmpid = swarm.pid
+        logging.info("{service_group}/{deviceID} HTM Pretrain Start PID {pid}".format(
+            service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=swarmpid))
         Path(self.__WORKDIR__ +
              "HTM-{pid}.pid".format(pid=swarmpid)).touch()
         while True:
             state = swarm.poll()
             if state != None:
-                logging.info("PreTrain Exit Code:"+str(state))
+                logging.info("{service_group}/{deviceID} HTM Pretrain End PID {pid} Exit Code {exitc}".format(
+                    service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=swarmpid, exitc=state))
                 os.unlink(self.__WORKDIR__ +
                           "HTM-{pid}.pid".format(pid=swarmpid))
                 break
             time.sleep(1)
         if state != 0:
             raise RuntimeError
-        removeList=[self.__WORKDIR__+"permutations.py",
-                    self.__WORKDIR__+"description.py",
-                    self.__WORKDIR__+"description.pyc",
-                    self.__WORKDIR__+"default_Report.csv",
-                    self.__WORKDIR__+"default_HyperSearchJobID.pkl"]
+        removeList = [self.__WORKDIR__+"permutations.py",
+                      self.__WORKDIR__+"description.py",
+                      self.__WORKDIR__+"description.pyc",
+                      self.__WORKDIR__+"default_Report.csv",
+                      self.__WORKDIR__+"default_HyperSearchJobID.pkl"]
         for dropPy in removeList:
             try:
                 os.unlink(dropPy)
@@ -156,12 +159,15 @@ class model:
 
         train = subprocess.Popen(["python2.7", self.__WORKDIR__+"train.py"])
         trainpid = train.pid
+        logging.info("{service_group}/{deviceID} HTM Train Start PID {pid}".format(
+            service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=trainpid))
         Path(self.__WORKDIR__ +
              "HTM-{pid}.pid".format(pid=trainpid)).touch()
         while True:
             state = train.poll()
             if state != None:
-                logging.info("Train Exist Code:"+str(state))
+                logging.info("{service_group}/{deviceID} HTM Train End PID {pid} Exit Code {exitc}".format(
+                    service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=trainpid, exitc=state))
                 os.unlink(self.__WORKDIR__ +
                           "HTM-{pid}.pid".format(pid=trainpid))
                 break
@@ -187,13 +193,18 @@ class model:
         if pid == 0:
             self.MODELP = subprocess.Popen(
                 ["python2.7", self.__WORKDIR__+"model.py"])
+            modelPID=self.MODELP.pid
             Path(self.__WORKDIR__ +
-                 "HTM-{pid}.pid".format(pid=self.MODELP.pid)).touch()
+                 "HTM-{pid}.pid".format(pid=modelPID)).touch()
+            logging.info("{service_group}/{deviceID} HTM Start PID {pid}".format(
+                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=modelPID))
             self.MODELP.wait()
-            logging.info("MODEL PROCESS EXIST")
+            logging.info("{service_group}/{deviceID} HTM End PID {pid}".format(
+                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=modelPID))
             os._exit(0)
         else:
-            logging.info("Model Load Start")
+            logging.info("{service_group}/{deviceID} HTM Model Loading Start".format(
+                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID))
             while True:
                 try:
                     reader = os.open(self.__WORKDIR__ +
@@ -204,7 +215,8 @@ class model:
             result = self.__get_message__(reader)
             os.close(reader)
             if result == "ACK":
-                logging.info("Model Load Done")
+                logging.info("{service_group}/{deviceID} HTM Model Loading Done".format(
+                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID))
                 self.isOnline = True
             else:
                 raise IOError
@@ -221,7 +233,7 @@ class model:
     def Recovery(self):
         recoverypid = os.getpid()
         Path(self.__WORKDIR__ +
-                 "HTM-{pid}.pid".format(pid=recoverypid)).touch()
+             "HTM-{pid}.pid".format(pid=recoverypid)).touch()
 
         with open(self.__WORKDIR__+"localnewest.tmp", "r") as f:
             data = f.read().split(",")[1]
@@ -249,7 +261,8 @@ class model:
             elif dataType == "string":
                 currentValue = data["count"]
 
-        logging.info("Pre Cleanup Start.")
+        logging.info("{service_group}/{deviceID} HTM Pre-Cleanup Start".format(
+                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID))
         self.__ReLoopPreUnsavedData__(currentTime, lastRecordedTime)
         time.sleep(1)
         timestamp, value, prediction, anomaly, metadata = self.Use(
@@ -258,7 +271,8 @@ class model:
             timestamp, value, prediction, anomaly, metadata, self.Data)
 
         time.sleep(1)
-        logging.info("Post Cleanup Start.")
+        logging.info("{service_group}/{deviceID} HTM Post-Cleanup Start".format(
+                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID))
         self.__CleanupPostUnprocessData__(currentTime)
         os.unlink(self.__WORKDIR__ +
                   "HTM-{pid}.pid".format(pid=recoverypid))
@@ -277,7 +291,8 @@ class model:
             except ProcessLookupError:
                 pass
             finally:
-                logging.info("Kill Process with pid:{pid}".format(pid=pid))
+                logging.info("{service_group}/{deviceID} HTM Kill PID {pid}".format(
+                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=pid))
         Path(self.__WORKDIR__+"modelInactive").touch()
         self.isOnline = False
 
@@ -366,14 +381,16 @@ class model:
             if record["anomaly"] == None:
                 dataAccessor.resultWriteback(
                     timestamp, value, prediction, anomaly, metadata, self.Data)
-        logging.info("Pre Cleanup Done.")
+        logging.info("{service_group}/{deviceID} HTM Pre-Cleanup Done".format(
+                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID))
 
     def __CleanupPostUnprocessData__(self, StartTime):
         result = dataAccessor.queFromCratedbBack(
             self.Data.data.fiware_service, self.Data.data.entityID, StartTime)
 
         if result == []:
-            logging.info("Post Cleanup Done.")
+            logging.info("{service_group}/{deviceID} HTM Post-Cleanup Done".format(
+                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID))
             return 0
         for record in result:
 
