@@ -124,7 +124,10 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
         elif Data.data.action == "Remove":
             if Model.isExist:
                 Model.Remove()
-                Path(__SENSORDIR__+"preLearning").touch()
+                try:
+                    Path(__SENSORDIR__+"preLearning").touch()
+                except:
+                    pass
                 try:
                     os.unlink(__SENSORDIR__+"postLearning")
                 except:

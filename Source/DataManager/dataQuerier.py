@@ -19,13 +19,13 @@ def commandIssue(fiware_service, sensorUID, post_data_dict, MODEL_PORT):
         action = post_data_dict["action"]
         metadata = post_data_dict["metadata"]
     except:
-        return -4
+        return 422,"{'Status':'Wrong Format'}"
     if actionType == "modelControl":
         try:
             with open(__PATH__+"/../Data/IoT/"+fiware_service+"/iotagent-setting.json") as f:
                 setting = json.load(f)
         except:
-            return -3
+            return 406,"{'Status':'Target Service Group Not Found'}"
 
         IOTA = setting["iotagent_setting"]["Iot-Agent-Url"]
         header = {"fiware-service": fiware_service, 'fiware-servicepath': "/"}
@@ -34,20 +34,20 @@ def commandIssue(fiware_service, sensorUID, post_data_dict, MODEL_PORT):
             entityID = r["entity_name"]
             attrs = r["static_attributes"]
         except:
-            return -1
+            return 406,"{'Status':'Target Sensor Not Found'}"
         static_attributes = {}
         for attr in attrs:
             static_attributes[attr["name"]] = attr["value"]
         data = {"value": action, "device_id": sensorUID, "entity_id": entityID,
                 "fiware_service": fiware_service, "metadata": metadata}
         dataSend("COMMAND", data, static_attributes, MODEL_PORT)
-        return 0
+        return 200,"{'Status':'Command Issue'}"
 
     elif actionType == "sensorControl":
         pass
         # TODO:Sensor Control
     else:
-        return -2
+        return 418,"{'Status':'Error Command Type'}"
 
 
 def dataStore(data: dict, MODEL_PORT):

@@ -28,22 +28,17 @@ class Handler(BaseHTTPRequestHandler):
         try:
             content_length = int(self.headers['Content-Length'])
         except:
-            return self._set_response(400, "{'Status':'No Data Input'}")
+            return self._set_response(422, "{'Status':'No Data Input'}")
         post_data = self.rfile.read(content_length).decode('utf-8')
         try:
             post_data_dict = json.loads(post_data)
         except:
-            return self._set_response(400, "{'Status':'Wrong Data Format'}")
+            return self._set_response(422, "{'Status':'Wrong Data Format'}")
 
         if str(self.path) == "/init":
-            ret = SystemManager.writeSetback(post_data_dict)
+            retCode,retText = SystemManager.writeSetback(post_data_dict)
+            return self._set_response(retCode,retText)
 
-            if ret == -1:
-                return self._set_response(422, "{'Status':'Already Exists'}")
-            elif ret == -2:
-                return self._set_response(400, "{'Status':'Wrong Format'}")
-            elif ret == 0:
-                return self._set_response(201, "{'Status':'Create'}")
         elif str(self.path) == "/notify":
 
             try:
@@ -76,79 +71,33 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     fiware_service = resourceSplit[2]
                     deviceID = resourceSplit[3]
+                    retCode, retText = dataQuerier.commandIssue(fiware_service, deviceID,
+                                                                post_data_dict, MODEL_PORT)
                 except:
-                    return self._set_response(400, "{'Status':'Wrong Format'}")
+                    retCode = 422
+                    retText = "{'Status':'Wrong Format'}"
 
-                rts = dataQuerier.commandIssue(fiware_service, deviceID,
-                                               post_data_dict, MODEL_PORT)
-
-                if rts == 0:
-                    return self._set_response(200, "{'Status':'Command Issue'}")
-                elif rts == -1:
-                    return self._set_response(400, "{'Status':'Target Sensor Not Found'}")
-                elif rts == -2:
-                    return self._set_response(400, "{'Status':'Error Command Type'}")
-                elif rts == -3:
-                    return self._set_response(400, "{'Status':'Target Service Group Not Found'}")
-                elif rts == -4:
-                    return self._set_response(400, "{'Status':'Wrong Format'}")
+                return self._set_response(retCode, retText)
 
             elif self.path.split("/")[-1] == "devices":
 
                 device = sensorRegister.Device()
-
                 ret, check = device.sensorRegister(post_data_dict)
+                self._set_response(ret, check)
 
-                if ret == 201:
-                    self._set_response(201, "{'Status':'Create'}")
-                elif ret == 409:
-                    return self._set_response(409, '{"name":"DUPLICATE_DEVICE_ID","message":"A device with the same pair (Service, DeviceId) was found')
-                elif ret == -1:
-                    return self._set_response(404, "{'Status':'Initial FIWARE First'}")
-                elif ret == 400:
-                    message = "{'Status':'Missing Sensor Information '" + \
-                        str(check)+"}"
-                    return self._set_response(400, message)
-                elif ret == -2:
-                    message = "{'Status':'Initial Iotagent Named '" + \
-                        post_data_dict["agent_info"]["Service-Group"] + \
-                        "' First'}"
-                    return self._set_response(404, message)
-                else:
-                    return self._set_response(400, "{'Status':'Fail'}")
             else:
                 return self._set_response(400, "{'Status':'Error Usage at Endpoint'}")
         elif str(self.path).find("/entities") == 0:
 
+            ret, retText = initFiware.createEntity(post_data_dict)
+            return self._set_response(ret, str(retText))
 
-            ret = initFiware.createEntity(post_data_dict)
-
-            if ret == -1:
-                return self._set_response(422, "{'Status':'Already Exists'}")
-            elif ret == -2:
-                return self._set_response(400, "{'Status':'Wrong Format'}")
-            elif ret == -3:
-                return self._set_response(404, "{'Status':'Can't Find Context Broker'}")
-            elif ret == 0:
-                return self._set_response(201, "{'Status':'Create'}")
         elif str(self.path) == "/service-groups":
 
             IotAgent = initIotagent.IotAgent()
+            retCode,retText = IotAgent.createIotagent(post_data_dict)
+            return self._set_response(retCode,retText)
 
-            ret = IotAgent.createIotagent(post_data_dict)
-
-            if ret == 0:
-                return self._set_response(201, "{'Status':'Create'}")
-            elif ret == -1:
-                return self._set_response(404, "{'Status':'Initial FIWARE First'}")
-            elif ret == -2:
-                return self._set_response(400, "{'Status':'Wrong Format, Must Be List'}")
-            elif ret == 422:
-                return self._set_response(ret, "{'Status':'Already Exist'}")
-            elif ret == 400:
-                return self._set_response(ret, "{'Status':'Wrong Format'}")
-            else:
-                return self._set_response(ret, "{'Status':'Fail'}")
         elif self.path.find("/subscriptions/") == 0:
             try:
                 creator = dataAccessor.Creator(MODEL_PORT)
@@ -161,7 +110,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._set_response(400, "{'Status':'Wrong Format'}")
 
         else:
-            return self._set_response(400, "{'Status':'Fail'}")
+            return self._set_response(404, "{'Status':'Endpoint Not Supported'}")
 
     def do_GET(self):
 
@@ -335,10 +284,13 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(str(msg).encode('utf-8'))
         return status_code
+
     def log_message(self, format, *args):
-        infolist=args[0].split(" ")
-        logging.info(self.address_string()+" "+infolist[0]+" On {"+infolist[1]+"}")
+        infolist = args[0].split(" ")
+        logging.info(self.address_string()+" " +
+                     infolist[0]+" On {"+infolist[1]+"}")
         return
+
 
 def run(server_class=HTTPServer, handler_class=Handler, port=PORT):
     ip_address = socket.gethostbyname(socket.gethostname())
@@ -368,8 +320,9 @@ def init():
         LOG_LEVEL = logging.ERROR
 
     formatter = '| %(levelname)s | %(asctime)s | %(process)d | %(message)s |'
-    logging.basicConfig(level=LOG_LEVEL,format=formatter,datefmt="%Y-%m-%d %H:%M:%S")
-    
+    logging.basicConfig(level=LOG_LEVEL, format=formatter,
+                        datefmt="%Y-%m-%d %H:%M:%S")
+
     logging.critical("AIOT CORE START")
 
 

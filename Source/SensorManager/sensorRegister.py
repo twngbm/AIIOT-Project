@@ -21,7 +21,6 @@ class Device():
             "savePeriod",
             "sensorName",
             "fieldName",
-            "refRoom",
             "sensorType",
             "unit",
             "dummy",
@@ -38,14 +37,14 @@ class Device():
     def sensorRegister(self, Sensor_info):
         ret=self.sensorCheck(Sensor_info)
         if type(ret)==list:
-            return 400,ret
+            return 422,"{'Status':'Missing Sensor Information "+str(ret)+"'}"
         try:
             with open(self.__PATH__+"/../Data/global-setting.json", "r") as f:
                 globalSetting = json.load(f)
                 ORION = globalSetting["system_setting"]["ORION"]
 
         except:
-            return -1,None
+            return 404, "{'Status':'Initial FIWARE First'}"
         fiware_service = Sensor_info["agent_info"]["Service-Group"]
         fiware_servicepath = "/"
 
@@ -54,7 +53,7 @@ class Device():
                 iotaSetting = json.load(f)
                 IOTA = iotaSetting["iotagent_setting"]["Iot-Agent-Url"]
         except:
-            return -2,None
+            return 422, "{'Status':'Initial Iotagent Named "+fiware_service+" First'"
         try:
             timezone = requests.get(
                 ORION+"/v2/entities?type=House&options=keyValues").json()[0]["timezone"]
@@ -76,7 +75,10 @@ class Device():
         retrain_period = Sensor_info["sensor_info"]["retrainPeriod"]
         sensor_type = Sensor_info["sensor_info"]["sensorType"]
         measurement = Sensor_info["sensor_info"]["measurement"]
-        refRoomID = Sensor_info["sensor_info"]["refRoom"]
+        try:
+            refRoomID = Sensor_info["sensor_info"]["refRoom"]
+        except:
+            refRoomID=None
         attribute = [{"object_id": measurement, "name": "count", "type": data_type},
                      {"object_id": "TS", "name": "timestamp", "type": "DateTime"}]
 
@@ -141,4 +143,4 @@ class Device():
             Path(self.__PATH__+"/../Data/IoT/"+fiware_service+"/"+device_id+"/localnewest.tmp").touch()
             Path(self.__PATH__+"/../Data/IoT/"+fiware_service+"/"+device_id+"/preLearning").touch()
 
-        return r.status_code,None
+        return r.status_code,r.text
