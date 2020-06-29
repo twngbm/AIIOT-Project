@@ -104,8 +104,10 @@ class Handler(BaseHTTPRequestHandler):
             except IOError:
                 return self._set_response(400, "{'Status':'Enpty'}")
             try:
-                creator.createSubscription(self.path, post_data_dict)
-                return self._set_response(201, "{'Status':'Create Subscription Success'}")
+                rtc,rtt=creator.createSubscription(self.path, post_data_dict)
+                return self._set_response(rtc, rtt)
+            except KeyError:
+                return self._set_response(400, "{'Status':'Service Group Missing'}")
             except:
                 return self._set_response(400, "{'Status':'Wrong Format'}")
 

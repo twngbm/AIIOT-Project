@@ -256,11 +256,9 @@ class Creator(SystemInfo):
         super().__init__(MODEL_PORT)
 
     def createSubscription(self, endpoint, post_data_dict):
-        url = post_data_dict["url"]
         try:
+            url = post_data_dict["Url"]
             fiware_service = endpoint.split("/")[2]
-            os.listdir(
-                self.__PATH__+"/../Data/IoT/"+fiware_service)
         except:
             raise KeyError
         try:
@@ -268,7 +266,7 @@ class Creator(SystemInfo):
         except:
             condition = "timestamp"
         data = {
-            "description": "Notify QuantumLeap of value changes of Sensor",
+            "description": "Notify "+url+" of "+condition+" changes.",
             "subject": {
                 "entities": [{"idPattern": ".*", "type": "Sensor"}],
                 "condition": {"attrs": [condition]}
@@ -279,8 +277,10 @@ class Creator(SystemInfo):
         }
         header = {'Content-Type': 'application/json',
                   'fiware-service': fiware_service, 'fiware-servicepath': "/"}
-        requests.post(self.ORION+"/v2/subscriptions?options=skipInitialNotification",
+        r=requests.post(self.ORION+"/v2/subscriptions?options=skipInitialNotification",
                       headers=header, data=json.dumps(data))
+        return r.status_code,r.text
+        
 
 
 class Updater(SystemInfo):
@@ -442,7 +442,7 @@ class Viewer(SystemInfo):
                     iota_setting = json.load(f)
                 no_match = 0
                 for key in query:
-                    if iota_setting["iotagent_setting"][key] != query[key]:
+                    if str(iota_setting["iotagent_setting"][key]) != str(query[key]):
                         no_match = 1
                         break
                 if no_match == 0:
