@@ -1,27 +1,3 @@
-############################################################################################
-#   This script run some setup command to init Iot-Agent for UltraLight as a component of
-# FIWARE system.
-#   This script require an api key for each service group define in file 'api_key.py'.
-#   Assum different type of devices ( passive devices, initactive devices...) will have it
-# different service group,hense with different "fiware-service" and endpoiot. For each iot-agent connected
-# to FIWARE will have each own single "fiware-servicepath", archicture show below:
-#                 --------------
-# fiware-service: | iota001 |
-#                 --------------
-#                    -----    -----
-# fiware-servicepath:| /ps |  | /is |
-#                    -----    -----
-#            --------------
-# iot-agent: | iot-agent_UL |
-#            --------------
-#           ---------    ---------
-# api keys: | key01   |  | key02   |
-#           ---------    ---------
-#           ---------    ---------
-# resource: | /iot/ps |  | /iot/is |
-#           ---------    ---------
-#
-############################################################################################
 import json
 import requests
 import logging
@@ -38,19 +14,24 @@ class IotAgent():
         lettersAndDigits = string.ascii_letters + string.digits
         return ''.join((random.choice(lettersAndDigits) for i in range(stringLength)))
 
-    def createIotagent(self, iota_setting):
+    def initIotagent(self):
         try:
-            with open("./Data/global-setting.json", "r") as f:
+            with open(self.__PATH__+"/../Data/global-setting.json", "r") as f:
                 setting = json.load(f)
         except:
             return 422, "{'Status':'Initial FIWARE First'}"
+        try:
+            with open(self.__PATH__+"/../iotagent_config.cfg", "r") as iotaf:
+                iota_setting = json.load(iotaf)
+        except:
+            return 422,  "{'Status':'IoT Agent Config Error'}"
         self.setting = {**setting, **iota_setting}
         self.ORION = self.setting["system_setting"]["ORION"]
         self.AIOTDFC = self.setting["system_setting"]["AIOTDFC"]
         self.QUANTUMLEAP = self.setting["system_setting"]["QUANTUMLEAP"]
         if type(self.setting["iotagent_setting"]) != list:
             return 422, "{'Status':'Wrong Format, Must Be List'}"
-        rt=[]
+        rt = []
         for iota in self.setting["iotagent_setting"]:
             try:
                 IOTA = iota["Iot-Agent-Url"]
@@ -67,24 +48,12 @@ class IotAgent():
                 iota["Device-Port"] = devicePort = ""
 
             try:
-                fiware_service = iota["Service-Group"]
-                if fiware_service in os.listdir(self.__PATH__+"/../Data/IoT"):
-                    continue
-            except:
-                existNum = sorted([int(x[4:]) for x in os.listdir(
-                    self.__PATH__+"/../Data/IoT") if x[-4:] != "json"])
-                for i in range(1000):
-                    if i not in existNum:
-                        iota["Service-Group"] = fiware_service = "iota" + \
-                            str(i).zfill(3)
-                        break
-
-            iota["Sub-Service-Group"] = fiware_servicepath = "/"
-
-            try:
                 resource = iota["Resource"]
             except:
                 iota["Resource"] = resource = "/iot/d"
+
+            iota["Service-Group"] = fiware_service = "iota"
+            iota["Sub-Service-Group"] = fiware_servicepath = "/"
 
             header = {'Content-Type': 'application/json',
                       'fiware-service': fiware_service, 'fiware-servicepath': fiware_servicepath}
@@ -92,40 +61,39 @@ class IotAgent():
                 "apikey": apikey, "cbroker": self.ORION, "entity_type": "Things", "resource": resource}]}
             r = requests.post(IOTA+"/iot/services", headers=header,
                               data=json.dumps(data))
-            
-            rt.append((r.status_code,r.text,r.url))
 
-            for url in [self.QUANTUMLEAP+"/v2/notify", self.AIOTDFC+"/notify"]:
+            rt.append((r.status_code, r.text, r.url))
 
-                data = {
-                    "description": "Notify QuantumLeap of value changes of Sensor",
-                    "subject": {
-                        "entities": [{"idPattern": ".*", "type": "Sensor"}],
-                        "condition": {"attrs": ["timestamp"]}
-                    },
-                    "notification": {"http": {"url": url},
-                                     "attrs": ["count", "predictionValue", "anomalyScore", "anomalyLikehood", "timestamp", "LogAnomalyLikehood", "Anomaly"]
-                                     }
-                }
-                if url == self.AIOTDFC+"/notify":
-                    data["description"] = "Notify Data Flow Contoroler of value changes of Sensor"
-                    data["notification"]["attrs"].remove("predictionValue")
-                    data["notification"]["attrs"].remove("anomalyScore")
-                    data["notification"]["attrs"].remove("anomalyLikehood")
-                    data["notification"]["attrs"].remove("LogAnomalyLikehood")
-                    data["notification"]["attrs"].remove("Anomaly")
-                r = requests.post(self.ORION+"/v2/subscriptions?options=skipInitialNotification",
-                                  headers=header, data=json.dumps(data))
-                rt.append((r.status_code,r.text,r.url))
-            os.mkdir(self.__PATH__+"/../Data/IoT/"+fiware_service)
+        for url in [self.QUANTUMLEAP+"/v2/notify", self.AIOTDFC+"/notify"]:
 
-            with open(self.__PATH__+"/../Data/IoT/"+fiware_service+"/iotagent-setting.json", "w") as opfile:
-                json.dump({"iotagent_setting": iota}, opfile)
-        errorStack=[]
+            data = {
+                "description": "Notify QuantumLeap of value changes of Sensor",
+                "subject": {
+                    "entities": [{"idPattern": ".*", "type": "Sensor"}],
+                    "condition": {"attrs": ["timestamp"]}
+                },
+                "notification": {"http": {"url": url},
+                                    "attrs": ["count", "predictionValue", "rawanomalyScore", "rawanomalyLikehood", "timestamp", "anomalyScore", "anomalyFlag"]
+                                    }
+            }
+            if url == self.AIOTDFC+"/notify":
+                data["description"] = "Notify Data Flow Contoroler of value changes of Sensor"
+                data["notification"]["attrs"].remove("predictionValue")
+                data["notification"]["attrs"].remove("rawanomalyScore")
+                data["notification"]["attrs"].remove("rawanomalyLikehood")
+                data["notification"]["attrs"].remove("anomalyScore")
+                data["notification"]["attrs"].remove("anomalyFlag")
+            r = requests.post(self.ORION+"/v2/subscriptions?options=skipInitialNotification",
+                                headers=header, data=json.dumps(data))
+            rt.append((r.status_code, r.text, r.url))
+
+        with open(self.__PATH__+"/../Data/iotagent-setting.json", "w") as opfile:
+            json.dump({"iotagent_setting": self.setting["iotagent_setting"]}, opfile)
+        errorStack = []
         for ret in rt:
-            if ret[0] !=201:
+            if ret[0] != 201:
                 errorStack.append(ret)
-        if errorStack==[]:
+        if errorStack == []:
             return 201, ""
         else:
-            return 422,json.dumps(errorStack)
+            return 422, json.dumps(errorStack)

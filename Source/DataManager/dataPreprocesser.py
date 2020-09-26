@@ -4,7 +4,7 @@ def dataPreprocesser(path:str,data:dict,device_id:str,static_attributes:dict):
     value,timestamp=dataClean(path,data["count"],data["timestamp"],data["dataType"])
     
     __elarycheckResult__=elaryCheck(path,value,data["dataType"],timestamp,static_attributes)
-    return __elarycheckResult__,{"value":value,"dataType":data["dataType"],"timestamp":str(timestamp),"entity_id":data["entity_id"],"device_id":device_id,"fiware_service":data["fiware_service"]}
+    return __elarycheckResult__,{"value":value,"dataType":data["dataType"],"timestamp":str(timestamp),"entity_id":data["entity_id"],"device_id":device_id,"service_group":data["service_group"]}
 
 def dataClean(path:str,value:str,timestamp:str,dataType:str):
     #TODO:Cleanup data

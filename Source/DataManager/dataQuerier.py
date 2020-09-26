@@ -12,7 +12,7 @@ from ModelManager import modelEntrance
 __GLOBAL_THREADHOLD__ = 0.7
 
 
-def commandIssue(fiware_service, sensorUID, post_data_dict, MODEL_PORT):
+def commandIssue(service_group, sensorUID, post_data_dict, MODEL_PORT):
     __PATH__ = os.path.dirname(os.path.abspath(__file__))
     try:
         actionType = post_data_dict["actionType"]
@@ -22,24 +22,15 @@ def commandIssue(fiware_service, sensorUID, post_data_dict, MODEL_PORT):
         return 422,"{'Status':'Wrong Format'}"
     if actionType == "modelControl":
         try:
-            with open(__PATH__+"/../Data/IoT/"+fiware_service+"/iotagent-setting.json") as f:
+            with open(__PATH__+"/../Data/IoT/"+service_group+"/"+sensorUID+"/device.cfg") as f:
                 setting = json.load(f)
         except:
             return 406,"{'Status':'Target Service Group Not Found'}"
 
-        IOTA = setting["iotagent_setting"]["Iot-Agent-Url"]
-        header = {"fiware-service": fiware_service, 'fiware-servicepath': "/"}
-        r = requests.get(IOTA+"/iot/devices/"+sensorUID, headers=header).json()
-        try:
-            entityID = r["entity_name"]
-            attrs = r["static_attributes"]
-        except:
-            return 406,"{'Status':'Target Sensor Not Found'}"
-        static_attributes = {}
-        for attr in attrs:
-            static_attributes[attr["name"]] = attr["value"]
+        entityID=setting["entityID"]
+        static_attributes=setting["static_attributes"]
         data = {"value": action, "device_id": sensorUID, "entity_id": entityID,
-                "fiware_service": fiware_service, "metadata": metadata}
+                "service_group": service_group, "metadata": metadata}
         dataSend("COMMAND", data, static_attributes, MODEL_PORT)
         return 200,"{'Status':'Command Issue'}"
 
@@ -52,28 +43,14 @@ def commandIssue(fiware_service, sensorUID, post_data_dict, MODEL_PORT):
 
 def dataStore(data: dict, MODEL_PORT):
     __PATH__ = os.path.dirname(os.path.abspath(__file__))
-    with open(__PATH__+"/../Data/IoT/"+data["fiware_service"]+"/iotagent-setting.json") as f:
+    deviceID=data["entity_id"].split(":")[3]
+    with open(__PATH__+"/../Data/IoT/"+data["service_group"]+"/"+deviceID+"/device.cfg") as f:
         setting = json.load(f)
-    IOTA = setting["iotagent_setting"]["Iot-Agent-Url"]
-    r = requests.get(IOTA+"/iot/devices",
-                     headers={"fiware-service": data["fiware_service"], 'fiware-servicepath': "/"})
-    r = r.json()["devices"]
-    attrs = None
-    for device in r:
-        if data["entity_id"] == device["entity_name"]:
-            device_id = device["device_id"]
-            attrs = device["static_attributes"]
-    if attrs == None:
-        return [4]
-    static_attributes = {}
-
-    for attr in attrs:
-        static_attributes[attr["name"]] = attr["value"]
     __DEVICE_PATH__ = __PATH__+"/../Data/IoT/" + \
-        data["fiware_service"]+"/"+device_id
-
+        data["service_group"]+"/"+deviceID
+    static_attributes=setting["static_attributes"]
     checkResult, data = dataPreprocesser.dataPreprocesser(
-        __DEVICE_PATH__, data, device_id, static_attributes)
+        __DEVICE_PATH__, data, deviceID, static_attributes)
 
     if 2 in checkResult:
         return checkResult
@@ -90,7 +67,7 @@ def dataStore(data: dict, MODEL_PORT):
     elif os.path.isfile(__DEVICE_PATH__+"/preLearning"):
         dataCache(__DEVICE_PATH__, data)
         statusUpdate(__DEVICE_PATH__, data)
-        if dataReady(__DEVICE_PATH__, static_attributes, data["fiware_service"], device_id):
+        if dataReady(__DEVICE_PATH__, static_attributes, data["service_group"], deviceID):
             sendStatus = dataSend("DATA", data,
                                   static_attributes, MODEL_PORT)
             if sendStatus != 0:

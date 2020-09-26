@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import logging
 import socket
 import SystemManager
-from SystemManager import initFiware, initIotagent
+from SystemManager import initFiware, initIotagent, serviceGroup
 from SensorManager import sensorRegister, sensorManager
 from DataManager import dataQuerier, dataAccessor
 import requests
@@ -16,6 +16,7 @@ import signal
 PORT = 9250
 TIMEZONE = +8
 MODEL_PORT = 5000
+TIMEZONE= "Asia/Taipei"
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -37,14 +38,25 @@ class Handler(BaseHTTPRequestHandler):
 
         if str(self.path) == "/init":
             retCode,retText = SystemManager.writeSetback(post_data_dict)
-            return self._set_response(retCode,retText)
+            if retCode!=201:
+                return self._set_response(retCode,retText)
+            else:
+                IotAgent = initIotagent.IotAgent()
+                retCode,retText =IotAgent.initIotagent()
+                if retCode==201:
+                    return self._set_response(201,"System Initinal Success.")
+                else:
+                    return self._set_response(retCode,retText)
+
+            
+            
 
         elif str(self.path) == "/notify":
 
             try:
                 entity_id = post_data_dict["data"][0]["id"]
+                service_group=entity_id.split(":")[1]
                 dataType = post_data_dict["data"][0]["count"]["type"]
-                fiware_service = self.headers["Fiware-Service"]
                 count = post_data_dict["data"][0]["count"]["value"]
                 timestamp = post_data_dict["data"][0]["timestamp"]["value"]
             except:
@@ -53,7 +65,7 @@ class Handler(BaseHTTPRequestHandler):
             if count == " " and timestamp == "1970-01-01T00:00:00.00Z":
                 return self._set_response(200, "")
 
-            Data = {"entity_id": entity_id, "fiware_service": fiware_service,
+            Data = {"entity_id": entity_id, "service_group": service_group,
                     "count": count, "timestamp": timestamp, "dataType": dataType}
 
             result = dataQuerier.dataStore(Data, MODEL_PORT)
@@ -64,14 +76,15 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 msg = "{'Status':'Error occured.','ErrorCode':"+str(result)+"}"
                 return self._set_response(409, msg)
+
         elif str(self.path).find("/devices") == 0:
             if self.path.split("/")[-1] == "controls":
 
                 resourceSplit = self.path.split("/")
                 try:
-                    fiware_service = resourceSplit[2]
+                    service_group = resourceSplit[2]
                     deviceID = resourceSplit[3]
-                    retCode, retText = dataQuerier.commandIssue(fiware_service, deviceID,
+                    retCode, retText = dataQuerier.commandIssue(service_group, deviceID,
                                                                 post_data_dict, MODEL_PORT)
                 except:
                     retCode = 422
@@ -81,7 +94,7 @@ class Handler(BaseHTTPRequestHandler):
 
             elif self.path.split("/")[-1] == "devices":
 
-                device = sensorRegister.Device()
+                device = sensorRegister.Device(TIMEZONE)
                 ret, check = device.sensorRegister(post_data_dict)
                 self._set_response(ret, check)
 
@@ -94,8 +107,7 @@ class Handler(BaseHTTPRequestHandler):
 
         elif str(self.path) == "/service-groups":
 
-            IotAgent = initIotagent.IotAgent()
-            retCode,retText = IotAgent.createIotagent(post_data_dict)
+            retCode,retText = serviceGroup.createServiceGroup(post_data_dict)
             return self._set_response(retCode,retText)
 
         elif self.path.find("/subscriptions/") == 0:
@@ -103,13 +115,16 @@ class Handler(BaseHTTPRequestHandler):
                 creator = dataAccessor.Creator(MODEL_PORT)
             except IOError:
                 return self._set_response(400, "{'Status':'Enpty'}")
+            rtc,rtt=creator.createSubscription(self.path, post_data_dict)
             try:
-                rtc,rtt=creator.createSubscription(self.path, post_data_dict)
+                
                 return self._set_response(rtc, rtt)
             except KeyError:
                 return self._set_response(400, "{'Status':'Service Group Missing'}")
             except:
                 return self._set_response(400, "{'Status':'Wrong Format'}")
+        elif self.path=="/test":
+            print(post_data_dict)
 
         else:
             return self._set_response(404, "{'Status':'Endpoint Not Supported'}")
@@ -306,7 +321,6 @@ def run(server_class=HTTPServer, handler_class=Handler, port=PORT):
 
 
 def init():
-    pass
     loglevel = os.getenv('LOG', "ERROR")
     if loglevel == "DEBUG":
         LOG_LEVEL = logging.DEBUG
@@ -326,6 +340,9 @@ def init():
                         datefmt="%Y-%m-%d %H:%M:%S")
 
     logging.critical("AIOT CORE START")
+
+
+
 
 
 def handle_sigchld(signum, frame):

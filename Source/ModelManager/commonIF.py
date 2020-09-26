@@ -52,7 +52,7 @@ class __DATA__:
         )  # Datetime object
         self.deviceID = self.__data__["device_id"]
         self.entityID = self.__data__["entity_id"]
-        self.fiware_service = self.__data__["fiware_service"]
+        self.service_group = self.__data__["service_group"]
 
 
 class __COMMAND__:
@@ -61,7 +61,7 @@ class __COMMAND__:
         self.action = self.__data__["value"]
         self.deviceID = self.__data__["device_id"]
         self.entityID = self.__data__["entity_id"]
-        self.fiware_service = self.__data__["fiware_service"]
+        self.service_group = self.__data__["service_group"]
         self.metadata = self.__data__["metadata"]
 
 
@@ -106,15 +106,15 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
     __SENSORDIR__ = (
         os.path.dirname(os.path.abspath(__file__))
         + "/../Data/IoT/"
-        + Data.data.fiware_service
+        + Data.data.service_group
         + "/"
         + Data.data.deviceID
         + "/"
     )
 
     if Data.dType == "COMMAND":
-        logging.info("{iota}/{device} Receive Command:{action}".format(
-            action=Data.data.action, iota=Data.data.fiware_service, device=Data.data.deviceID))
+        logging.info("{sg}/{device} Receive Command:{action}".format(
+            action=Data.data.action, sg=Data.data.service_group, device=Data.data.deviceID))
 
         if Data.data.action == "Sleep":
             if Model.isOnline:
@@ -136,8 +136,8 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                     os.unlink(__SENSORDIR__+"inLearning")
                 except:
                     pass
-            logging.info("{iota}/{device} Romove Done".format(
-                iota=Data.data.fiware_service, device=Data.data.deviceID))
+            logging.info("{sg}/{device} Romove Done".format(
+                sg=Data.data.service_group, device=Data.data.deviceID))
             return 0
 
         elif Data.data.action == "Reset":
@@ -155,15 +155,15 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                     os.unlink(__SENSORDIR__+"inLearning")
                 except:
                     pass
-            logging.info("{iota}/{device} Reset Done".format(
-                iota=Data.data.fiware_service, device=Data.data.deviceID))
+            logging.info("{sg}/{device} Reset Done".format(
+                sg=Data.data.service_group, device=Data.data.deviceID))
             return 0
 
         elif Data.data.action == "Save":
             if Model.isOnline:
                 Model.Save()
-            logging.info("{iota}/{device} Save Done".format(
-                iota=Data.data.fiware_service, device=Data.data.deviceID))
+            logging.info("{sg}/{device} Save Done".format(
+                sg=Data.data.service_group, device=Data.data.deviceID))
             return 0
 
         elif Data.data.action == "Train":
@@ -180,12 +180,12 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
 
     if (Data.dType == "DATA" and not Model.isSafeStop) or trainFlag or wakeFlag:
         if Data.dType == "DATA":
-            logging.info("{iota}/{device} Receive Data T:{timeidx},V:{value}".format(
-                timeidx=Data.data.timestamp, value=Data.data.value, iota=Data.data.fiware_service, device=Data.data.deviceID))
+            logging.info("{sg}/{device} Receive Data T:{timeidx},V:{value}".format(
+                timeidx=Data.data.timestamp, value=Data.data.value, sg=Data.data.service_group, device=Data.data.deviceID))
 
         if not Model.isExist:
-            logging.info("{iota}/{device} Model Prepare Start".format(
-                iota=Data.data.fiware_service, device=Data.data.deviceID))
+            logging.info("{sg}/{device} Model Prepare Start".format(
+                sg=Data.data.service_group, device=Data.data.deviceID))
             Path(__SENSORDIR__+"inLearning").touch()
             try:
                 os.unlink(__SENSORDIR__+"preLearning")
@@ -197,11 +197,11 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 pass
 
             Model.Prepare()  # Prepare, copy model dependence file to data folder
-            logging.info("{iota}/{device} Model Prepare Done".format(
-                iota=Data.data.fiware_service, device=Data.data.deviceID))
+            logging.info("{sg}/{device} Model Prepare Done".format(
+                sg=Data.data.service_group, device=Data.data.deviceID))
         if not Model.isTrained or Model.isRetrainPeriod:
-            logging.info("{iota}/{device} Model Train Start".format(
-                iota=Data.data.fiware_service, device=Data.data.deviceID))
+            logging.info("{sg}/{device} Model Train Start".format(
+                sg=Data.data.service_group, device=Data.data.deviceID))
             Path(__SENSORDIR__+"inLearning").touch()
             try:
                 os.unlink(__SENSORDIR__+"postLearning")
@@ -229,8 +229,8 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 os.unlink(__SENSORDIR__+"counter.tmp")
             except:
                 pass
-            logging.info("{iota}/{device} Model Train Done".format(
-                iota=Data.data.fiware_service, device=Data.data.deviceID))
+            logging.info("{sg}/{device} Model Train Done".format(
+                sg=Data.data.service_group, device=Data.data.deviceID))
 
             if trainFlag:
                 Path(__SENSORDIR__+"postLearning").touch()
@@ -241,8 +241,8 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 return 0
 
         if not Model.isOnline:
-            logging.info("{iota}/{device} Model Bootup Start".format(
-                iota=Data.data.fiware_service, device=Data.data.deviceID))
+            logging.info("{sg}/{device} Model Bootup Start".format(
+                sg=Data.data.service_group, device=Data.data.deviceID))
             Path(__SENSORDIR__+"inLearning").touch()
             try:
                 os.unlink(__SENSORDIR__+"postLearning")
@@ -279,20 +279,20 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
             except:
                 pass
             Path(__SENSORDIR__+"postLearning").touch()
-            logging.info("{iota}/{device} Model Bootup Done".format(
-                iota=Data.data.fiware_service, device=Data.data.deviceID))
+            logging.info("{sg}/{device} Model Bootup Done".format(
+                sg=Data.data.service_group, device=Data.data.deviceID))
             return 0
         if Model.isSavePeriod:
             Model.Save()
-            logging.info("{iota}/{device} Model Save Done".format(
-                iota=Data.data.fiware_service, device=Data.data.deviceID))
-        timestamp, value, prediction, anomaly, metadata = Model.Use(
+            logging.info("{sg}/{device} Model Save Done".format(
+                sg=Data.data.service_group, device=Data.data.deviceID))
+        timestamp, value, anomalyScore, anomalyFlag, metadata = Model.Use(
             Data.data.value, Data.data.timestamp)  # Use model to generate real time prediction
-        if anomaly == True:
-            logging.warning("Anomaly Detection at \nIoT Agent {fiwareService}\nEntityId {entityID}\nTimestamp {timestamp}".format(
-                fiwareService=Data.data.fiware_service, entityID=Data.data.entityID, timestamp=timestamp))
+        if anomalyFlag:
+            logging.warning("Anomaly Detection at \nIoT Agent {sg}\nEntityId {entityID}\nTimestamp {timestamp}".format(
+                sg=Data.data.service_group, entityID=Data.data.entityID, timestamp=timestamp))
             # TODO:Raise Warming
             pass
         dataAccessor.resultWriteback(
-            timestamp, value, prediction, anomaly, metadata, Data)
+            timestamp, value, anomalyScore, anomalyFlag, metadata, Data)
         return 0

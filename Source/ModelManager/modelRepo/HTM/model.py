@@ -8,6 +8,7 @@ import struct
 import select
 import signal
 import time
+import datetime
 signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
 
@@ -71,15 +72,17 @@ while True:
             continue
     
     msg=msg.split(",")
-    modelInput={"value":float(msg[0])}
+    modelInput={"c1":float(msg[0])}
     timestamp=msg[1]
     pid=msg[2]
-    modelInput["timestamp"]=timestamp
+    modelInput["c0"]=datetime.datetime.strptime(
+                    timestamp, "%Y-%m-%d %H:%M:%S"
+                )
     result=model.run(modelInput)
     result=shifter.shift(result)
 
-    value = result.rawInput["value"]
-    timestamp = result.rawInput["timestamp"]
+    value = result.rawInput["c1"]
+    timestamp = result.rawInput["c0"]
     prediction = result.inferences['multiStepBestPredictions'][
         1] if result.inferences['multiStepBestPredictions'][1] != None else value
     anomalyScore = result.inferences["anomalyScore"]

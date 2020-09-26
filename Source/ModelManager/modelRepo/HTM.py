@@ -20,19 +20,18 @@ sys.path.insert(0, parent_dir)
 class model:
     def __init__(self, Data, __GLOBAL_THREADHOLD__):
         self.Data = Data
-        self.fiware_service = self.Data.data.fiware_service
+        self.serviceGroup = self.Data.data.service_group
         self.deviceID = self.Data.data.deviceID
         self.__GLOBAL_THREADHOLD__ = __GLOBAL_THREADHOLD__
         self.__SENSORDIR__ = (
             os.path.dirname(os.path.abspath(__file__))
             + "/../../Data/IoT/"
-            + self.fiware_service
+            + self.serviceGroup
             + "/"
             + self.deviceID
             + "/"
         )
         self.__WORKDIR__ = self.__SENSORDIR__ + "HTM/"
-        self.workdir = self.__SENSORDIR__ + "HTM/"
         self.TrainOutput = None
         if not os.path.isdir(self.__WORKDIR__):
             self.isExist = False
@@ -86,23 +85,11 @@ class model:
     def Pretrain(self):
 
         shutil.copy(self.__SENSORDIR__+"localnewest.tmp", self.__WORKDIR__)
-        with open(self.__WORKDIR__ + "search_def.json", "r") as f:
-            swarm_config = json.loads(f.read())
-        swarm_config["includedFields"][0]["fieldType"] = self.Data.static_attributes.dataType
-        swarm_config["streamDef"]["streams"][0]["source"] = (
-            "file://Data/IoT/"
-            + self.Data.data.fiware_service
-            + "/"
-            + self.Data.data.deviceID
-            + "/"
-            + "localdata.tmp"
-        )
         if os.path.isfile(self.__SENSORDIR__+"localdata.tmp"):
             pass
         else:
             try:
-                data = dataAccessor.queFromCratedbNewest(
-                    self.Data.data.fiware_service, self.Data.data.entityID, int(self.Data.data.metadata["TrainLimit"]))
+                data = dataAccessor.queFromCratedbNewest(self.Data.data.entityID, int(self.Data.data.metadata["TrainLimit"]))
 
             except KeyError:
                 raise KeyError
@@ -118,56 +105,41 @@ class model:
                     f.write(value+","+timestamp+"\n")
                 f.close()
 
-        with open(self.__WORKDIR__ + "search_def.json", "w") as f:
-            json.dump(swarm_config, f)
         swarm = subprocess.Popen(
             ["/usr/bin/python2.7", self.__WORKDIR__ + "swarm.py"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            #stdout=subprocess.DEVNULL,
+            #stderr=subprocess.DEVNULL
         )
         swarmpid = swarm.pid
         logging.info("{service_group}/{deviceID} HTM Pretrain Start PID {pid}".format(
-            service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=swarmpid))
+            service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=swarmpid))
         Path(self.__WORKDIR__ +
              "HTM-{pid}.pid".format(pid=swarmpid)).touch()
         while True:
             state = swarm.poll()
             if state != None:
                 logging.info("{service_group}/{deviceID} HTM Pretrain End PID {pid} Exit Code {exitc}".format(
-                    service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=swarmpid, exitc=state))
+                    service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=swarmpid, exitc=state))
                 os.unlink(self.__WORKDIR__ +
                           "HTM-{pid}.pid".format(pid=swarmpid))
                 break
             time.sleep(1)
         if state != 0:
             raise RuntimeError
-        removeList = [self.__WORKDIR__+"permutations.py",
-                      self.__WORKDIR__+"description.py",
-                      self.__WORKDIR__+"description.pyc",
-                      self.__WORKDIR__+"default_Report.csv",
-                      self.__WORKDIR__+"default_HyperSearchJobID.pkl"]
-        for dropPy in removeList:
-            try:
-                os.unlink(dropPy)
-            except:
-                pass
-        os.system("mv "+self.__WORKDIR__ +
-                  "model_0/model_params.py "+self.__WORKDIR__)
-        os.system("rm -r "+self.__WORKDIR__+"model_0")
 
     def Train(self):
 
         train = subprocess.Popen(["python2.7", self.__WORKDIR__+"train.py"])
         trainpid = train.pid
         logging.info("{service_group}/{deviceID} HTM Train Start PID {pid}".format(
-            service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=trainpid))
+            service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=trainpid))
         Path(self.__WORKDIR__ +
              "HTM-{pid}.pid".format(pid=trainpid)).touch()
         while True:
             state = train.poll()
             if state != None:
                 logging.info("{service_group}/{deviceID} HTM Train End PID {pid} Exit Code {exitc}".format(
-                    service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=trainpid, exitc=state))
+                    service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=trainpid, exitc=state))
                 os.unlink(self.__WORKDIR__ +
                           "HTM-{pid}.pid".format(pid=trainpid))
                 break
@@ -193,18 +165,18 @@ class model:
         if pid == 0:
             self.MODELP = subprocess.Popen(
                 ["python2.7", self.__WORKDIR__+"model.py"])
-            modelPID=self.MODELP.pid
+            modelPID = self.MODELP.pid
             Path(self.__WORKDIR__ +
                  "HTM-{pid}.pid".format(pid=modelPID)).touch()
             logging.info("{service_group}/{deviceID} HTM Start PID {pid}".format(
-                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=modelPID))
+                service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=modelPID))
             self.MODELP.wait()
             logging.info("{service_group}/{deviceID} HTM End PID {pid}".format(
-                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=modelPID))
+                service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=modelPID))
             os._exit(0)
         else:
             logging.info("{service_group}/{deviceID} HTM Model Loading Start".format(
-                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID))
+                service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
             while True:
                 try:
                     reader = os.open(self.__WORKDIR__ +
@@ -216,7 +188,7 @@ class model:
             os.close(reader)
             if result == "ACK":
                 logging.info("{service_group}/{deviceID} HTM Model Loading Done".format(
-                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID))
+                    service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
                 self.isOnline = True
             else:
                 raise IOError
@@ -244,8 +216,7 @@ class model:
             currentTime = self.Data.data.timestamp
             currentValue = self.Data.data.value
         except:
-            data = dataAccessor.queFromCratedbNewest(
-                self.Data.data.fiware_service, self.Data.data.entityID, 1)[0]
+            data = dataAccessor.queFromCratedbNewest(self.Data.data.entityID, 1)[0]
             currentTime = (datetime.timedelta(
                 seconds=data["time_index"]/1000)+datetime.datetime(1970, 1, 1))
             dataType = self.Data.static_attributes.dataType
@@ -262,18 +233,24 @@ class model:
                 currentValue = data["count"]
 
         logging.info("{service_group}/{deviceID} HTM Pre-Cleanup Start".format(
-                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID))
-        self.__ReLoopPreUnsavedData__(currentTime, lastRecordedTime)
+            service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
+        try:
+            self.__ReLoopPreUnsavedData__(currentTime, lastRecordedTime)
+        except:
+            print("Here")
         time.sleep(1)
-        timestamp, value, prediction, anomaly, metadata = self.Use(
+        timestamp, value, anomalyScore, anomalyFlag, metadata = self.Use(
             currentValue, currentTime)
         dataAccessor.resultWriteback(
-            timestamp, value, prediction, anomaly, metadata, self.Data)
+            timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data)
 
         time.sleep(1)
         logging.info("{service_group}/{deviceID} HTM Post-Cleanup Start".format(
-                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID))
-        self.__CleanupPostUnprocessData__(currentTime)
+            service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
+        try:
+            self.__CleanupPostUnprocessData__(currentTime)
+        except:
+            print("Here2")
         os.unlink(self.__WORKDIR__ +
                   "HTM-{pid}.pid".format(pid=recoverypid))
 
@@ -292,7 +269,7 @@ class model:
                 pass
             finally:
                 logging.info("{service_group}/{deviceID} HTM Kill PID {pid}".format(
-                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID, pid=pid))
+                    service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=pid))
         Path(self.__WORKDIR__+"modelInactive").touch()
         self.isOnline = False
 
@@ -311,7 +288,6 @@ class model:
         os.close(reader)
         os.unlink(self.__WORKDIR__+pid)
         result = result[1:-1].split(",")
-
         dataType = self.Data.static_attributes.dataType
         if dataType == "float":
             predictionValue = float(result[0])
@@ -326,12 +302,9 @@ class model:
         anomalyScore = float(result[1])
         anomalyLikelihood = float(result[2])
         logAnomalyLikelihood = float(result[3])
-        if logAnomalyLikelihood > self.__GLOBAL_THREADHOLD__:
-            anomaly = "True"
-        else:
-            anomaly = "False"
-
-        return timestamp, value, predictionValue, anomaly, {"anomalyScore": anomalyScore, "anomalyLikelihood": anomalyLikelihood, "logAnomalyLikelihood": logAnomalyLikelihood}
+        anomalyFlag = self.__anomaly_detector__(
+            logAnomalyLikelihood, value, self.__GLOBAL_THREADHOLD__)
+        return timestamp, value, logAnomalyLikelihood, anomalyFlag, {"rawanomalyScore": anomalyScore, "rawanomalyLikelihood": anomalyLikelihood, "predictionValue": predictionValue}
 
     def Reset(self):
         try:
@@ -355,6 +328,10 @@ class model:
         self.isExist = False
         self.isTrained = False
 
+    def __anomaly_detector__(self, score, value, threshold, SPATIAL_TOLERANCE=0.05, windowSize=12):
+        return False
+        pass
+
     def __create_msg__(self, content: bytes) -> bytes:
         return struct.pack("<I", len(content)) + content
 
@@ -367,30 +344,27 @@ class model:
     def __ReLoopPreUnsavedData__(self, EndTime, StartTime):
         # Walk Through Type A and Type B Data, which Type A data's anomaly != None, though  save type B data only.
         result = dataAccessor.queFromCratedbBound(
-            self.Data.data.fiware_service, self.Data.data.entityID, StartTime, EndTime)
-
+            self.Data.data.entityID, StartTime, EndTime)
         for record in result:
-
             time.sleep(1)
             INvalue = record["count"]
             timestampint = record["timestamp"]
             INtimestamp = (datetime.timedelta(
                 seconds=timestampint/1000)+datetime.datetime(1970, 1, 1))
-            timestamp, value, prediction, anomaly, metadata = self.Use(
+            timestamp, value, anomalyScore, anomalyFlag, metadata = self.Use(
                 INvalue, INtimestamp)
-            if record["anomaly"] == None:
+            if record["anomalyflag"] == None:
                 dataAccessor.resultWriteback(
-                    timestamp, value, prediction, anomaly, metadata, self.Data)
+                    timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data)
         logging.info("{service_group}/{deviceID} HTM Pre-Cleanup Done".format(
-                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID))
+            service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
 
     def __CleanupPostUnprocessData__(self, StartTime):
         result = dataAccessor.queFromCratedbBack(
-            self.Data.data.fiware_service, self.Data.data.entityID, StartTime)
-
+            self.Data.data.entityID, StartTime)
         if result == []:
             logging.info("{service_group}/{deviceID} HTM Post-Cleanup Done".format(
-                service_group=self.Data.data.fiware_service, deviceID=self.Data.data.deviceID))
+                service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
             return 0
         for record in result:
 
@@ -399,8 +373,8 @@ class model:
             timestampint = record["timestamp"]
             INtimestamp = (datetime.timedelta(
                 seconds=timestampint/1000)+datetime.datetime(1970, 1, 1))
-            timestamp, value, prediction, anomaly, metadata = self.Use(
+            timestamp, value, anomalyScore, anomalyFlag, metadata = self.Use(
                 INvalue, INtimestamp)
             dataAccessor.resultWriteback(
-                timestamp, value, prediction, anomaly, metadata, self.Data)
+                timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data)
         return self.__CleanupPostUnprocessData__(INtimestamp)

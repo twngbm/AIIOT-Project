@@ -8,3 +8,4 @@ __pycache__/
 *.ipynb
 todo
 Data/
+test.py

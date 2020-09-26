@@ -3,26 +3,45 @@
 import json
 import sys
 import os
-from nupic.swarming import permutations_runner
+import csv
+import numpy as np
 import logging
-import multiprocessing
+from nupic.frameworks.opf.common_models.cluster_params import (
+  getScalarMetricWithTimeOfDayAnomalyParams)
 
 logging.basicConfig()
 
-
-def readConfig(__PATH__):
-    with open(__PATH__ + "/search_def.json", "r") as f:
-        swarm_config = json.loads(f.read())
-    return swarm_config
-
-
 if __name__ == "__main__":
-    cpuCount=int(multiprocessing.cpu_count())
     __PATH__ = os.path.dirname(os.path.abspath(__file__))
-    swarm_config = readConfig(__PATH__)
-    model_params = permutations_runner.runWithConfig(
-        swarm_config,
-        {"maxWorkers": cpuCount, "overwrite": True},
-        outDir=__PATH__,
-        permWorkDir=__PATH__,
-    )
+    with open(__PATH__+"/../localdata.tmp", "r") as filein:
+        reader=csv.reader(filein)
+        headers = reader.next()
+        reader.next()
+        reader.next()
+        valueList=[]
+        try:
+            while True:
+                record=dict(zip(headers,reader.next()))
+                valueList.append(float(record["value"]))
+        except:
+            pass
+        finally:
+            
+            x=np.array(valueList)
+            
+            stdVal=np.std(x)
+            maxVal=np.max(x)+1.35*stdVal
+            minVal=np.min(x)-1.35*stdVal
+            if minVal<0:
+                minVal=0
+            
+    modelParams = getScalarMetricWithTimeOfDayAnomalyParams(
+          metricData=[0],
+          minVal=minVal,
+          maxVal=maxVal,
+          minResolution=0.001,
+          tmImplementation = "cpp")
+    modelParams["modelConfig"]['modelParams']["clEnable"]=True
+    with open(__PATH__+"/model_params","w") as f:
+        json.dump(modelParams,f)
+
