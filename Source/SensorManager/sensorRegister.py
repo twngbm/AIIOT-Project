@@ -65,7 +65,7 @@ class Device():
                     iota_setting = iota
                     break
             if not found:
-                return 404, "{'Status':'No Iot Agent At"+str(iotagent)+"Installed.'}"
+                return 404, "{'Status':'No Iot Agent At "+str(iotagent)+" Installed.'}"
         except:
             return 404, "{'Status':'No Iot Agent Installed.'}"
 

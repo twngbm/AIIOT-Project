@@ -8,6 +8,7 @@ import csv
 import requests
 import shutil
 from DataManager import dataQuerier
+from ModelManager import GroupAnomalyPolicy
 __PATH__ = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -39,11 +40,20 @@ def trainoutputWriteback(path: str, Data, __GLOBAL_THREADHOLD__: float):
             )
 
 
-def resultWriteback(timestamp: datetime, value, anomalyScore: float, anomalyFlag: bool, metadata: dict, Data):
+def resultWriteback(timestamp: datetime, value, anomalyScore: float, anomalyFlag: bool, metadata: dict, Data, raiseAnomaly=False):
 
     rawanomalyScore = metadata["rawanomalyScore"] if "rawanomalyScore" in metadata else None
     rawanomalyLikelihood = metadata["rawanomalyLikelihood"] if "rawanomalyLikelihood" in metadata else None
     predictionValue = metadata["predictionValue"] if "predictionValue" in metadata else None
+    if anomalyFlag and raiseAnomaly:
+        header = {'Content-Type': 'application/json',
+                  'fiware-service': 'iota', "fiware-servicepath": "/"}
+        data = {"Anomaly": {"type": "Bool", "value": True}}
+        with open(__PATH__+"/../Data/global-setting.json", "r") as f:
+            setting = json.load(f)
+            ORION = setting["system_setting"]["ORION"]
+        r = requests.patch(ORION+"/v2/entities/"+Data.data.entityID+"/attrs",
+                           headers=header, data=json.dumps(data))
     writeToCratedb(
         Data.data.service_group,
         Data.data.entityID,
@@ -151,6 +161,33 @@ def queFromCratedbNewest(entity_id: str, limit: int):
     result = cursor.fetchall()
     output = [{header[i]:x[i] for i in range(len(header))} for x in result]
     return output[::-1]
+
+
+def groupAnomaly(Data):
+    sg = Data.data.service_group
+    timestamp = Data.data.timestamp
+    with open(__PATH__+"/../Data/IoT/"+sg+"/subscription.json", "r") as f:
+        try:
+            group_subscription = json.load(f)
+        except:
+            return
+    for gsp in group_subscription:
+        policy = gsp["Policy"]
+        timewidth = gsp["Timewidth"]
+        url = gsp["Url"]
+        gap = getattr(GroupAnomalyPolicy, policy)
+        try:
+            gap = getattr(GroupAnomalyPolicy, policy)
+        except:
+            logging.error(f"No group anomaly policy named {policy}.")
+            continue
+        groupAnomaly = gap(Data, timewidth)
+        if groupAnomaly:
+            header = {"Content-Type": "application/json"}
+            timestr = timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            data = {"Status": f"Group {sg} occured anomaly, at time {timestr}"}
+            requests.post(url, headers=header, data=json.dumps(data))
+    return
 
 
 class SystemInfo():
@@ -265,13 +302,28 @@ class Creator(SystemInfo):
         try:
             condition = post_data_dict["Condition"]
         except:
-            condition = "timestamp"
-        with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "r") as f:
+            condition = "Anomaly"
+
+        if condition == "GroupAnlmaly":
+            with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "r") as f:
+                try:
+                    subscriptionList = json.load(f)
+                except:
+                    subscriptionList = []
             try:
-                subscriptionList = json.load(f)
+                policy = post_data_dict["Policy"]
             except:
-                subscriptionList = {"BuildIn": {}, "Expand": {}}
-        if condition == "timestamp" or condition == "count":
+                policy = "Default_Nearest_AND"
+            try:
+                timeWidth = post_data_dict["TimeWidth"]
+            except:
+                timeWidth = 60
+            subscriptionList.append(
+                {"Policy": policy, "Timewidth": timeWidth, "Url": url})
+            with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "w") as f:
+                json.dump(subscriptionList, f)
+            return 201, {"Status": "Group Subscription Create Success."}
+        else:
             data = {
                 "description": "Notify "+url+" of "+condition+" changes.",
                 "subject": {
@@ -279,8 +331,7 @@ class Creator(SystemInfo):
                     "condition": {"attrs": [condition]}
                 },
                 "notification": {"http": {"url": url},
-                                 "attrs": ["count", "timestamp"]
-                                 }
+                                 "attrsFormat": "keyValues"}
             }
             header = {'Content-Type': 'application/json',
                       'fiware-service': "iota", 'fiware-servicepath': "/"}
@@ -288,13 +339,6 @@ class Creator(SystemInfo):
                           headers=header, data=json.dumps(data))
             header.pop('Content-Type')
             r = requests.get(self.ORION+"/v2/subscriptions", headers=header)
-            buildInSubscription=json.loads(r.text)
-            for sub in buildInSubscription:
-                if sub["subject"]["entities"][0]["idPattern"]==service_group:
-                    if sub["id"] not in subscriptionList["BuildIn"]:
-                        subscriptionList["BuildIn"][sub["id"]]=sub
-        else:
-            pass
 
         return r.status_code, r.text
 

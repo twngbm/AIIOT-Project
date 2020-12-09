@@ -16,7 +16,7 @@ import signal
 PORT = 9250
 TIMEZONE = +8
 MODEL_PORT = 5000
-TIMEZONE= "Asia/Taipei"
+TIMEZONE = "Asia/Taipei"
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -37,25 +37,21 @@ class Handler(BaseHTTPRequestHandler):
             return self._set_response(422, "{'Status':'Wrong Data Format'}")
 
         if str(self.path) == "/init":
-            retCode,retText = SystemManager.writeSetback(post_data_dict)
-            if retCode!=201:
-                return self._set_response(retCode,retText)
+            retCode, retText = SystemManager.writeSetback(post_data_dict)
+            if retCode != 201:
+                return self._set_response(retCode, retText)
             else:
                 IotAgent = initIotagent.IotAgent()
-                retCode,retText =IotAgent.initIotagent()
-                if retCode==201:
-                    return self._set_response(201,"System Initinal Success.")
+                retCode, retText = IotAgent.initIotagent()
+                if retCode == 201:
+                    return self._set_response(201, "System Initinal Success.")
                 else:
-                    return self._set_response(retCode,retText)
-
-            
-            
+                    return self._set_response(retCode, retText)
 
         elif str(self.path) == "/notify":
-
             try:
                 entity_id = post_data_dict["data"][0]["id"]
-                service_group=entity_id.split(":")[1]
+                service_group = entity_id.split(":")[1]
                 dataType = post_data_dict["data"][0]["count"]["type"]
                 count = post_data_dict["data"][0]["count"]["value"]
                 timestamp = post_data_dict["data"][0]["timestamp"]["value"]
@@ -79,7 +75,6 @@ class Handler(BaseHTTPRequestHandler):
 
         elif str(self.path).find("/devices") == 0:
             if self.path.split("/")[-1] == "controls":
-
                 resourceSplit = self.path.split("/")
                 try:
                     service_group = resourceSplit[2]
@@ -93,38 +88,36 @@ class Handler(BaseHTTPRequestHandler):
                 return self._set_response(retCode, retText)
 
             elif self.path.split("/")[-1] == "devices":
-
                 device = sensorRegister.Device(TIMEZONE)
                 ret, check = device.sensorRegister(post_data_dict)
                 self._set_response(ret, check)
-
             else:
                 return self._set_response(400, "{'Status':'Error Usage at Endpoint'}")
-        elif str(self.path).find("/entities") == 0:
 
+        elif str(self.path).find("/entities") == 0:
             ret, retText = initFiware.createEntity(post_data_dict)
             return self._set_response(ret, str(retText))
 
         elif str(self.path) == "/service-groups":
-
-            retCode,retText = serviceGroup.createServiceGroup(post_data_dict)
-            return self._set_response(retCode,retText)
+            retCode, retText = serviceGroup.createServiceGroup(post_data_dict)
+            return self._set_response(retCode, retText)
 
         elif self.path.find("/subscriptions/") == 0:
             try:
                 creator = dataAccessor.Creator(MODEL_PORT)
             except IOError:
                 return self._set_response(400, "{'Status':'Enpty'}")
-            rtc,rtt=creator.createSubscription(self.path, post_data_dict)
+            rtc, rtt = creator.createSubscription(self.path, post_data_dict)
             try:
-                
                 return self._set_response(rtc, rtt)
             except KeyError:
                 return self._set_response(400, "{'Status':'Service Group Missing'}")
             except:
                 return self._set_response(400, "{'Status':'Wrong Format'}")
-        elif self.path=="/test":
+
+        elif self.path == "/test":
             print(post_data_dict)
+            return self._set_response(200, "{''}")
 
         else:
             return self._set_response(404, "{'Status':'Endpoint Not Supported'}")
@@ -184,6 +177,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._set_response(400, "{'Status':'Wrong Use of Endpoint'}")
         elif r == -2:
             return self._set_response(404, "{'Status':'Service Not Found'}")
+        elif r == -3:
+            return self._set_response(400, "{'Status':'Missing Necessary Information'}")
         else:
             return self._set_response(200, r)
 
@@ -340,9 +335,6 @@ def init():
                         datefmt="%Y-%m-%d %H:%M:%S")
 
     logging.critical("AIOT CORE START")
-
-
-
 
 
 def handle_sigchld(signum, frame):

@@ -288,11 +288,10 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 sg=Data.data.service_group, device=Data.data.deviceID))
         timestamp, value, anomalyScore, anomalyFlag, metadata = Model.Use(
             Data.data.value, Data.data.timestamp)  # Use model to generate real time prediction
-        if anomalyFlag:
-            logging.warning("Anomaly Detection at \nIoT Agent {sg}\nEntityId {entityID}\nTimestamp {timestamp}".format(
-                sg=Data.data.service_group, entityID=Data.data.entityID, timestamp=timestamp))
-            # TODO:Raise Warming
-            pass
         dataAccessor.resultWriteback(
-            timestamp, value, anomalyScore, anomalyFlag, metadata, Data)
+            timestamp, value, anomalyScore, anomalyFlag, metadata, Data, raiseAnomaly=True)
+        if anomalyFlag:
+            logging.warning("Anomaly Detection at Service Group:{sg} EntityId:{entityID} at Time:{timestamp}".format(
+                sg=Data.data.service_group, entityID=Data.data.entityID, timestamp=timestamp))
+            dataAccessor.groupAnomaly(Data)
         return 0

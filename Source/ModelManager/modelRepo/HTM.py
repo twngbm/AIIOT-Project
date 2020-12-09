@@ -89,7 +89,8 @@ class model:
             pass
         else:
             try:
-                data = dataAccessor.queFromCratedbNewest(self.Data.data.entityID, int(self.Data.data.metadata["TrainLimit"]))
+                data = dataAccessor.queFromCratedbNewest(
+                    self.Data.data.entityID, int(self.Data.data.metadata["TrainLimit"]))
 
             except KeyError:
                 raise KeyError
@@ -107,8 +108,8 @@ class model:
 
         swarm = subprocess.Popen(
             ["/usr/bin/python2.7", self.__WORKDIR__ + "swarm.py"],
-            #stdout=subprocess.DEVNULL,
-            #stderr=subprocess.DEVNULL
+            # stdout=subprocess.DEVNULL,
+            # stderr=subprocess.DEVNULL
         )
         swarmpid = swarm.pid
         logging.info("{service_group}/{deviceID} HTM Pretrain Start PID {pid}".format(
@@ -216,7 +217,8 @@ class model:
             currentTime = self.Data.data.timestamp
             currentValue = self.Data.data.value
         except:
-            data = dataAccessor.queFromCratedbNewest(self.Data.data.entityID, 1)[0]
+            data = dataAccessor.queFromCratedbNewest(
+                self.Data.data.entityID, 1)[0]
             currentTime = (datetime.timedelta(
                 seconds=data["time_index"]/1000)+datetime.datetime(1970, 1, 1))
             dataType = self.Data.static_attributes.dataType
@@ -237,12 +239,12 @@ class model:
         try:
             self.__ReLoopPreUnsavedData__(currentTime, lastRecordedTime)
         except:
-            print("Here")
+            pass
         time.sleep(1)
         timestamp, value, anomalyScore, anomalyFlag, metadata = self.Use(
             currentValue, currentTime)
         dataAccessor.resultWriteback(
-            timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data)
+            timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data, raiseAnomaly=False)
 
         time.sleep(1)
         logging.info("{service_group}/{deviceID} HTM Post-Cleanup Start".format(
@@ -250,7 +252,7 @@ class model:
         try:
             self.__CleanupPostUnprocessData__(currentTime)
         except:
-            print("Here2")
+            pass
         os.unlink(self.__WORKDIR__ +
                   "HTM-{pid}.pid".format(pid=recoverypid))
 
@@ -329,8 +331,9 @@ class model:
         self.isTrained = False
 
     def __anomaly_detector__(self, score, value, threshold, SPATIAL_TOLERANCE=0.05, windowSize=12):
+        if value < 1.5:
+            return True
         return False
-        pass
 
     def __create_msg__(self, content: bytes) -> bytes:
         return struct.pack("<I", len(content)) + content
@@ -355,7 +358,7 @@ class model:
                 INvalue, INtimestamp)
             if record["anomalyflag"] == None:
                 dataAccessor.resultWriteback(
-                    timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data)
+                    timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data, raiseAnomaly=False)
         logging.info("{service_group}/{deviceID} HTM Pre-Cleanup Done".format(
             service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
 
@@ -376,5 +379,5 @@ class model:
             timestamp, value, anomalyScore, anomalyFlag, metadata = self.Use(
                 INvalue, INtimestamp)
             dataAccessor.resultWriteback(
-                timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data)
+                timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data, raiseAnomaly=False)
         return self.__CleanupPostUnprocessData__(INtimestamp)
