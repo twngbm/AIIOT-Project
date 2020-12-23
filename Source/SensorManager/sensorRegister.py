@@ -35,6 +35,7 @@ class Device():
                 lost_list.append(attr)
         if lost_list != []:
             return lost_list
+
         else:
             return 0
 
@@ -54,7 +55,6 @@ class Device():
         fiware_servicepath = "/"
         iotagent = Sensor_info["agent_info"]["iotagent"]
         serviceGroup = Sensor_info["agent_info"]["service_group"]
-
         try:
             with open(self.__PATH__+"/../Data/iotagent-setting.json", "r") as iotaf:
                 iota_setting = json.load(iotaf)["iotagent_setting"]
@@ -66,6 +66,7 @@ class Device():
                     break
             if not found:
                 return 404, "{'Status':'No Iot Agent At "+str(iotagent)+" Installed.'}"
+
         except:
             return 404, "{'Status':'No Iot Agent Installed.'}"
 
@@ -138,7 +139,6 @@ class Device():
                              {"name": "dataType",
                               "type": "Text", "value": data_type},
                              {"name": "Anomaly", "type": "Bool", "value": "False"}]
-
         if dummy:
             static_attributes.append(
                 {"name": "isDummy", "type": "Bool", "value": "True"})
@@ -157,7 +157,6 @@ class Device():
                   "fiware-service": fiware_service, "fiware-servicepath": fiware_servicepath}
         r = requests.post(IOTA+"/iot/devices", headers=header,
                           data=json.dumps(data))
-
         if r.status_code == 201:
             os.mkdir(self.__PATH__+"/../Data/IoT/"+serviceGroup+"/"+device_id)
             static_attributes_output = {}
@@ -176,5 +175,4 @@ class Device():
                  "/"+device_id+"/localnewest.tmp").touch()
             Path(self.__PATH__+"/../Data/IoT/"+serviceGroup +
                  "/"+device_id+"/preLearning").touch()
-
         return r.status_code, r.text

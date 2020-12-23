@@ -50,7 +50,6 @@ class model:
                 self.isOnline = False
         except:
             self.isOnline = False
-
         try:
             with open(self.__WORKDIR__+"localnewest.tmp", "r") as f:
                 data = f.read().split(",")[1]
@@ -75,7 +74,6 @@ class model:
             self.isSafeStop = False
 
     def Prepare(self):
-
         self.__REPOPATH__ = os.path.dirname(os.path.abspath(__file__))
         p = subprocess.Popen(
             ["cp", "-r", self.__REPOPATH__ + "/HTM", self.__SENSORDIR__]
@@ -83,7 +81,6 @@ class model:
         p.wait(10)
 
     def Pretrain(self):
-
         shutil.copy(self.__SENSORDIR__+"localnewest.tmp", self.__WORKDIR__)
         if os.path.isfile(self.__SENSORDIR__+"localdata.tmp"):
             pass
@@ -91,9 +88,9 @@ class model:
             try:
                 data = dataAccessor.queFromCratedbNewest(
                     self.Data.data.entityID, int(self.Data.data.metadata["TrainLimit"]))
-
             except KeyError:
                 raise KeyError
+
             with open(self.__SENSORDIR__+"localdata.tmp", "w+") as f:
                 f.write("value,timestamp\n" +
                         self.Data.static_attributes.dataType+",datetime\n ,T\n")
@@ -129,7 +126,6 @@ class model:
             raise RuntimeError
 
     def Train(self):
-
         train = subprocess.Popen(["python2.7", self.__WORKDIR__+"train.py"])
         trainpid = train.pid
         logging.info("{service_group}/{deviceID} HTM Train Start PID {pid}".format(
@@ -156,7 +152,6 @@ class model:
         os.unlink(self.__SENSORDIR__+"trainoutput.csv")
 
     def Load(self):
-
         try:
             os.unlink(self.__WORKDIR__+"modelInactive")
         except:
@@ -369,6 +364,7 @@ class model:
             logging.info("{service_group}/{deviceID} HTM Post-Cleanup Done".format(
                 service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
             return 0
+
         for record in result:
 
             time.sleep(1)

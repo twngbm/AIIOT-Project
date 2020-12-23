@@ -19,44 +19,47 @@ def commandIssue(service_group, sensorUID, post_data_dict, MODEL_PORT):
         action = post_data_dict["action"]
         metadata = post_data_dict["metadata"]
     except:
-        return 422,"{'Status':'Wrong Format'}"
+        return 422, "{'Status':'Wrong Format'}"
+
     if actionType == "modelControl":
         try:
             with open(__PATH__+"/../Data/IoT/"+service_group+"/"+sensorUID+"/device.cfg") as f:
                 setting = json.load(f)
         except:
-            return 406,"{'Status':'Target Service Group Not Found'}"
+            return 406, "{'Status':'Target Service Group Not Found'}"
 
-        entityID=setting["entityID"]
-        static_attributes=setting["static_attributes"]
+        entityID = setting["entityID"]
+        static_attributes = setting["static_attributes"]
         data = {"value": action, "device_id": sensorUID, "entity_id": entityID,
                 "service_group": service_group, "metadata": metadata}
         dataSend("COMMAND", data, static_attributes, MODEL_PORT)
-        return 200,"{'Status':'Command Issue'}"
+        return 200, "{'Status':'Command Issue'}"
 
     elif actionType == "sensorControl":
         pass
         # TODO:Sensor Control
     else:
-        return 418,"{'Status':'Error Command Type'}"
+        return 418, "{'Status':'Error Command Type'}"
 
 
 def dataStore(data: dict, MODEL_PORT):
     __PATH__ = os.path.dirname(os.path.abspath(__file__))
-    deviceID=data["entity_id"].split(":")[3]
+    deviceID = data["entity_id"].split(":")[3]
     with open(__PATH__+"/../Data/IoT/"+data["service_group"]+"/"+deviceID+"/device.cfg") as f:
         setting = json.load(f)
     __DEVICE_PATH__ = __PATH__+"/../Data/IoT/" + \
         data["service_group"]+"/"+deviceID
-    static_attributes=setting["static_attributes"]
+    static_attributes = setting["static_attributes"]
     checkResult, data = dataPreprocesser.dataPreprocesser(
         __DEVICE_PATH__, data, deviceID, static_attributes)
 
     if 2 in checkResult:
         return checkResult
+
     if os.path.isfile(__DEVICE_PATH__+"/inLearning"):
         statusUpdate(__DEVICE_PATH__, data)
         return checkResult
+
     elif os.path.isfile(__DEVICE_PATH__+"/postLearning"):
         statusUpdate(__DEVICE_PATH__, data)
         sendStatus = dataSend("DATA", data,
@@ -64,6 +67,7 @@ def dataStore(data: dict, MODEL_PORT):
         if sendStatus != 0:
             checkResult.append(sendStatus)
         return checkResult
+
     elif os.path.isfile(__DEVICE_PATH__+"/preLearning"):
         dataCache(__DEVICE_PATH__, data)
         statusUpdate(__DEVICE_PATH__, data)
@@ -119,6 +123,7 @@ def dataReady(path, static_attributes, iota, deviceID):
     logging.info(msg)
     if targetCount > count:
         return False
+
     else:
         return True
 

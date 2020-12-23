@@ -20,23 +20,27 @@ class IotAgent():
                 setting = json.load(f)
         except:
             return 422, "{'Status':'Initial FIWARE First'}"
+
         try:
             with open(self.__PATH__+"/../iotagent_config.cfg", "r") as iotaf:
                 iota_setting = json.load(iotaf)
         except:
             return 422,  "{'Status':'IoT Agent Config Error'}"
+
         self.setting = {**setting, **iota_setting}
         self.ORION = self.setting["system_setting"]["ORION"]
         self.AIOTDFC = self.setting["system_setting"]["AIOTDFC"]
         self.QUANTUMLEAP = self.setting["system_setting"]["QUANTUMLEAP"]
         if type(self.setting["iotagent_setting"]) != list:
             return 422, "{'Status':'Wrong Format, Must Be List'}"
+
         rt = []
         for iota in self.setting["iotagent_setting"]:
             try:
                 IOTA = iota["Iot-Agent-Url"]
             except:
                 return 422, "{'Status':'Must Specific Iot-Agent-Url'}"
+
             try:
                 apikey = iota["apikey"]
             except:
@@ -46,7 +50,6 @@ class IotAgent():
                 devicePort = iota["Device-Port"]
             except:
                 iota["Device-Port"] = devicePort = ""
-
             try:
                 resource = iota["Resource"]
             except:
@@ -65,7 +68,6 @@ class IotAgent():
             rt.append((r.status_code, r.text, r.url))
 
         for url in [self.QUANTUMLEAP+"/v2/notify", self.AIOTDFC+"/notify"]:
-
             data = {
                 "description": "Notify QuantumLeap of value changes of Sensor",
                 "subject": {
@@ -73,8 +75,8 @@ class IotAgent():
                     "condition": {"attrs": ["timestamp"]}
                 },
                 "notification": {"http": {"url": url},
-                                    "attrs": ["count", "predictionValue", "rawanomalyScore", "rawanomalyLikehood", "timestamp", "anomalyScore", "anomalyFlag"]
-                                    }
+                                 "attrs": ["count", "predictionValue", "rawanomalyScore", "rawanomalyLikehood", "timestamp", "anomalyScore", "anomalyFlag"]
+                                 }
             }
             if url == self.AIOTDFC+"/notify":
                 data["description"] = "Notify Data Flow Contoroler of value changes of Sensor"
@@ -84,16 +86,18 @@ class IotAgent():
                 data["notification"]["attrs"].remove("anomalyScore")
                 data["notification"]["attrs"].remove("anomalyFlag")
             r = requests.post(self.ORION+"/v2/subscriptions?options=skipInitialNotification",
-                                headers=header, data=json.dumps(data))
+                              headers=header, data=json.dumps(data))
             rt.append((r.status_code, r.text, r.url))
 
         with open(self.__PATH__+"/../Data/iotagent-setting.json", "w") as opfile:
-            json.dump({"iotagent_setting": self.setting["iotagent_setting"]}, opfile)
+            json.dump(
+                {"iotagent_setting": self.setting["iotagent_setting"]}, opfile)
         errorStack = []
         for ret in rt:
             if ret[0] != 201:
                 errorStack.append(ret)
         if errorStack == []:
             return 201, ""
+
         else:
             return 422, json.dumps(errorStack)

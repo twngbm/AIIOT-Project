@@ -30,6 +30,7 @@ class Handler(BaseHTTPRequestHandler):
             content_length = int(self.headers['Content-Length'])
         except:
             return self._set_response(422, "{'Status':'No Data Input'}")
+
         post_data = self.rfile.read(content_length).decode('utf-8')
         try:
             post_data_dict = json.loads(post_data)
@@ -40,11 +41,13 @@ class Handler(BaseHTTPRequestHandler):
             retCode, retText = SystemManager.writeSetback(post_data_dict)
             if retCode != 201:
                 return self._set_response(retCode, retText)
+
             else:
                 IotAgent = initIotagent.IotAgent()
                 retCode, retText = IotAgent.initIotagent()
                 if retCode == 201:
                     return self._set_response(201, "System Initinal Success.")
+
                 else:
                     return self._set_response(retCode, retText)
 
@@ -84,7 +87,6 @@ class Handler(BaseHTTPRequestHandler):
                 except:
                     retCode = 422
                     retText = "{'Status':'Wrong Format'}"
-
                 return self._set_response(retCode, retText)
 
             elif self.path.split("/")[-1] == "devices":
@@ -107,11 +109,14 @@ class Handler(BaseHTTPRequestHandler):
                 creator = dataAccessor.Creator(MODEL_PORT)
             except IOError:
                 return self._set_response(400, "{'Status':'Enpty'}")
+
             rtc, rtt = creator.createSubscription(self.path, post_data_dict)
             try:
                 return self._set_response(rtc, rtt)
+
             except KeyError:
                 return self._set_response(400, "{'Status':'Service Group Missing'}")
+
             except:
                 return self._set_response(400, "{'Status':'Wrong Format'}")
 
@@ -154,6 +159,7 @@ class Handler(BaseHTTPRequestHandler):
             viewer = dataAccessor.Viewer(MODEL_PORT)
         except IOError:
             return self._set_response(400, "{'Status':'Nothing To Read'}")
+
         try:
             endpoint, query = self._url_resource_parser(self.path)
             resourceSplit = endpoint.split("/")
@@ -161,26 +167,58 @@ class Handler(BaseHTTPRequestHandler):
             additionalURL = "/".join(resourceSplit)
         except:
             return self._set_response(400, "{'Status':'Wrong Format'}")
+
         r = -1
         if baseEndpoint == "entities":
             r = viewer.listEntities(additionalURL, query)
-
         elif baseEndpoint == "devices":
             r = viewer.listDevices(additionalURL, query)
-
         elif baseEndpoint == "subscriptions":
             r = viewer.listSubscriptions(additionalURL, query)
-
         elif baseEndpoint == "service-groups":
             r = viewer.listServiceGroups(additionalURL, query)
         if r == -1:
             return self._set_response(400, "{'Status':'Wrong Use of Endpoint'}")
+
         elif r == -2:
             return self._set_response(404, "{'Status':'Service Not Found'}")
+
         elif r == -3:
             return self._set_response(400, "{'Status':'Missing Necessary Information'}")
+
         else:
             return self._set_response(200, r)
+
+    def do_PATCH(self):
+        # /entities/<entityID>/
+        try:
+            content_length = int(self.headers['Content-Length'])
+        except:
+            return self._set_response(400, "{'Status':'No Data Input'}")
+
+        post_data = self.rfile.read(content_length).decode('utf-8')
+        try:
+            post_data_dict = json.loads(post_data)
+        except:
+            return self._set_response(400, "{'Status':'Wrong Data Format'}")
+
+        try:
+            updater = dataAccessor.Updater(MODEL_PORT)
+        except IOError:
+            return self._set_response(400, "{'Status':'Nothing To Update'}")
+
+        endpoint, query = self._url_resource_parser(self.path)
+        if endpoint.find("/entities/") == 0:
+            try:
+                retcode, rettext = updater.updateEntity(
+                    endpoint.split("/")[2], post_data_dict)
+                return self._set_response(retcode, rettext)
+
+            except:
+                return self._set_response(400, "{'Status':'Wrong Format'}")
+
+        else:
+            return self._set_response(400, "{'Status':'Error usage at endpoint.'}")
 
     def do_DELETE(self):
         # /reset -> Reset
@@ -194,13 +232,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._set_response(400, "{'Status':'Nothing To Clean'}")
 
         endpoint, query = self._url_resource_parser(self.path)
-
         if endpoint == None:
             return self._set_response(400, "{'Status':'Wrong Format'}")
 
         elif endpoint == "/reset":
             Cleaner.reset()
             return self._set_response(201, "{'Status':'Remove Done'}")
+
         elif endpoint.find("/entities/") == 0:
             try:
                 if endpoint.split("/")[3] == "attrs":
@@ -210,22 +248,28 @@ class Handler(BaseHTTPRequestHandler):
                         retcode, rettext = Cleaner.removeEntityAttr(
                             entityID, attrName)
                         return self._set_response(retcode, rettext)
+
                     except:
                         return self._set_response(400, "{'Status':'Wrong Format'}")
+
                 else:
                     return self._set_response(400, "{'Status':'Error usage at endpoint.'}")
+
             except:
                 try:
                     entityID = endpoint.split("/")[2]
                 except:
                     return self._set_response(400, "{'Status':'Wrong Format'}")
+
                 ret, msg = Cleaner.removeEntity(entityID)
                 return self._set_response(ret, msg)
+
         elif endpoint.find("/devices/") == 0:
             try:
                 Cleaner.removeIoTSensor(endpoint.split(
                     "/")[2], endpoint.split("/")[3])
                 return self._set_response(201, "{'Status':'Remove Done'}")
+
             except:
                 return self._set_response(400, "{'Status':'Wrong Format'}")
 
@@ -234,6 +278,7 @@ class Handler(BaseHTTPRequestHandler):
                 Cleaner.removeServiceGroup(endpoint.split(
                     "/")[2])
                 return self._set_response(201, "{'Status':'Remove Done'}")
+
             except:
                 return self._set_response(400, "{'Status':'Wrong Format'}")
 
@@ -242,35 +287,10 @@ class Handler(BaseHTTPRequestHandler):
                 Cleaner.removeSubscription(
                     endpoint.split("/")[2], endpoint.split("/")[3])
                 return self._set_response(201, "{'Status':'Remove Done'}")
+
             except:
                 return self._set_response(400, "{'Status':'Wrong Format'}")
-        else:
-            return self._set_response(400, "{'Status':'Error usage at endpoint.'}")
 
-    def do_PATCH(self):
-        # /entities/<entityID>/
-        try:
-            content_length = int(self.headers['Content-Length'])
-        except:
-            return self._set_response(400, "{'Status':'No Data Input'}")
-        post_data = self.rfile.read(content_length).decode('utf-8')
-        try:
-            post_data_dict = json.loads(post_data)
-        except:
-            return self._set_response(400, "{'Status':'Wrong Data Format'}")
-        try:
-            updater = dataAccessor.Updater(MODEL_PORT)
-        except IOError:
-            return self._set_response(400, "{'Status':'Nothing To Update'}")
-
-        endpoint, query = self._url_resource_parser(self.path)
-        if endpoint.find("/entities/") == 0:
-            try:
-                retcode, rettext = updater.updateEntity(
-                    endpoint.split("/")[2], post_data_dict)
-                return self._set_response(retcode, rettext)
-            except:
-                return self._set_response(400, "{'Status':'Wrong Format'}")
         else:
             return self._set_response(400, "{'Status':'Error usage at endpoint.'}")
 
@@ -278,6 +298,7 @@ class Handler(BaseHTTPRequestHandler):
         url = url.split("?")
         if len(url) > 2:
             return None, None
+
         endpoint = url[0]
         query = {}
         if len(url) == 2:
@@ -288,6 +309,7 @@ class Handler(BaseHTTPRequestHandler):
                     query[kv[0]] = kv[1]
             except:
                 return None, None
+
         return endpoint, query
 
     def _set_response(self, status_code, msg):

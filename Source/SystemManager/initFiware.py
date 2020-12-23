@@ -12,17 +12,18 @@ def createEntity(setting):
             ORION = globalSetting["system_setting"]["ORION"]
     except:
         return 404, "{'Status':'Can't Find Context Broker'}"
+
     header = {"Content-Type": "application/json"}
     try:
         entityType = setting["type"]
         entityID = setting["id"].replace(" ", "_")
     except:
         return 400, "{'Status':'Wrong Format'}"
+
     try:
         metadata = setting["metadata"]
     except:
         metadata = []
-
     data = {}
     data["type"] = entityType
     dID = "urn:ngsi-ld:"+entityType+":"+entityID
@@ -39,4 +40,4 @@ def createEntity(setting):
     data["id"] = dID
     r = requests.post(ORION+"/v2/entities", headers=header,
                       data=json.dumps(data))
-    return r.status_code,r.text
+    return r.status_code, r.text

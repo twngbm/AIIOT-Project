@@ -41,7 +41,6 @@ def trainoutputWriteback(path: str, Data, __GLOBAL_THREADHOLD__: float):
 
 
 def resultWriteback(timestamp: datetime, value, anomalyScore: float, anomalyFlag: bool, metadata: dict, Data, raiseAnomaly=False):
-
     rawanomalyScore = metadata["rawanomalyScore"] if "rawanomalyScore" in metadata else None
     rawanomalyLikelihood = metadata["rawanomalyLikelihood"] if "rawanomalyLikelihood" in metadata else None
     predictionValue = metadata["predictionValue"] if "predictionValue" in metadata else None
@@ -52,8 +51,8 @@ def resultWriteback(timestamp: datetime, value, anomalyScore: float, anomalyFlag
         with open(__PATH__+"/../Data/global-setting.json", "r") as f:
             setting = json.load(f)
             ORION = setting["system_setting"]["ORION"]
-        r = requests.patch(ORION+"/v2/entities/"+Data.data.entityID+"/attrs",
-                           headers=header, data=json.dumps(data))
+        requests.patch(ORION+"/v2/entities/"+Data.data.entityID+"/attrs",
+                       headers=header, data=json.dumps(data))
     writeToCratedb(
         Data.data.service_group,
         Data.data.entityID,
@@ -171,6 +170,7 @@ def groupAnomaly(Data):
             group_subscription = json.load(f)
         except:
             return
+
     for gsp in group_subscription:
         policy = gsp["Policy"]
         timewidth = gsp["Timewidth"]
@@ -233,7 +233,6 @@ class Cleaner(SystemInfo):
         shutil.rmtree(__PATH__+"/../Data/IoT/"+service_group+"/"+DeviceID)
 
     def removeServiceGroup(self, service_group):
-
         for d in self.sg_tree[service_group]:
             self.removeIoTSensor(service_group, d)
         r = requests.get(
@@ -253,6 +252,7 @@ class Cleaner(SystemInfo):
                     subscriptionList = json.load(f)
                 except:
                     return
+
             for sub in subscriptionList:
                 if sub["id"] == subscriptionID:
                     subscriptionList.remove(sub)
@@ -280,7 +280,6 @@ class Cleaner(SystemInfo):
 
             resource = iota_setting["Resource"]
             apikey = iota_setting["apikey"]
-
         header = {'Content-Type': 'application/json'}
         sql = '{"stmt":"DROP TABLE IF EXISTS mtiota.etsensor"}'
         r = requests.get(self.CRATEDB+"/_sql", headers=header, data=sql)
@@ -295,16 +294,13 @@ class Cleaner(SystemInfo):
         shutil.rmtree(__PATH__+"/../Data/IoT/")
 
     def reset(self):
-
         for sg in self.sg_tree:
             self.removeServiceGroup(sg)
-
         r = requests.get(self.ORION+"/v2/entities")
         for entity in r.json():
             r = requests.delete(self.ORION+"/v2/entities/"+entity["id"])
         self.resetIoTAgent()
         shutil.rmtree(__PATH__+"/../Data")
-
         return 0
 
 
@@ -322,7 +318,6 @@ class Creator(SystemInfo):
             condition = post_data_dict["Condition"]
         except:
             condition = "Anomaly"
-
         if condition == "GroupAnlmaly":
             with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "r") as f:
                 try:
@@ -343,6 +338,7 @@ class Creator(SystemInfo):
             with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "w") as f:
                 json.dump(subscriptionList, f)
             return 201, {"id": GASID, "description": f"Notify {url} when {service_group} occured group anomaly,with policy {policy}."}
+
         else:
             data = {
                 "description": "Notify "+url+" of "+condition+" changes.",
@@ -362,6 +358,7 @@ class Creator(SystemInfo):
     def createID(self, existGAS):
         if existGAS == []:
             return "000"
+
         return str(int(existGAS[-1]["id"])+1).rjust(3, "0")
 
 
@@ -379,6 +376,7 @@ class Updater(SystemInfo):
             data["actionType"] = "append_strict"
         else:
             return 400, "{'Status':'Wrong Data Format'}"
+
         data["entities"] = [{"id": entityID}]
         for attr in attrs:
             data["entities"][0][attr] = attrs[attr]
@@ -394,11 +392,13 @@ class Viewer(SystemInfo):
     def listEntities(self, additionEndpiont="", query={}):
         if additionEndpiont == "" or additionEndpiont == "/":
             return requests.get(self.ORION+"/v2/entities", params=query).text
+
         else:
             try:
                 targetEntity = additionEndpiont.split("/")[1]
             except:
                 return -1
+
             header = {}
             if targetEntity.find("urn:ngsi-ld") == -1:
                 header = {
@@ -411,11 +411,11 @@ class Viewer(SystemInfo):
             service_group = additionEndpiont.split("/")[1]
         except:
             return -1
+
         try:
             deviceID = additionEndpiont.split("/")[2]
         except:
             deviceID = ""
-
         try:
             dirlist = os.listdir(
                 self.__PATH__+"/../Data/IoT/"+service_group)
@@ -429,12 +429,12 @@ class Viewer(SystemInfo):
                 info = "info"
             if deviceID not in dirlist:
                 return -2
+
             with open(self.__PATH__+"/../Data/IoT/"+service_group+"/"+deviceID+"/device.cfg", "r") as f:
                 iota_setting = json.load(f)
             iota_url = iota_setting["iotagent_config"]["Iot-Agent-Url"]
             header = {'fiware-service': "iota",
                       "fiware-servicepath": "/"}
-
             if info == "model":
                 try:
                     dirlist = os.listdir(
@@ -473,11 +473,13 @@ class Viewer(SystemInfo):
                 output = [{header[i]:x[i]
                            for i in range(len(header))} for x in result]
                 return json.dumps(output)
+
             elif info == "controls":
                 try:
                     os.listdir(self.__PATH__+"/../Data/IoT/" +
                                service_group+"/"+deviceID)
                     return json.dumps({"modelControl": ["Reset,Remove,Save,Sleep,Train,Wake"], "sensorControl": []})
+
                 except:
                     return -2
 
@@ -492,7 +494,6 @@ class Viewer(SystemInfo):
 
     def listServiceGroups(self, additionEndpiont, query):
         sg = os.listdir(self.__PATH__+"/../Data/IoT/")
-
         if additionEndpiont == "" and query == {}:
             return json.dumps({"type": "service-groups", "value": sg, "metadata": {}})
 
@@ -519,8 +520,10 @@ class Viewer(SystemInfo):
                     subscriptionList.append(sub)
             if subEndpoint == "devices":
                 return deviceList
+
             elif subEndpoint == "subscriptions":
                 return subscriptionList
+
             else:
                 return {"Device": deviceList, "Subscription": subscriptionList}
 
@@ -529,6 +532,7 @@ class Viewer(SystemInfo):
             service_group = additionEndpiont.split("/")[1]
         except:
             return -1
+
         try:
             subscriptionID = additionEndpiont.split("/")[2]
         except:
@@ -548,6 +552,7 @@ class Viewer(SystemInfo):
                 except:
                     subscriptionList = []
             return subscription+subscriptionList
+
         else:
             if len(subscriptionID) == 3:
                 with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "r") as f:
@@ -558,7 +563,9 @@ class Viewer(SystemInfo):
                 for sub in subscriptionList:
                     if sub["id"] == subscriptionID:
                         return [sub]
+
                 return {"error": "NotFound", "description": "The requested subscription has not been found. Check id"}
+
             else:
                 header = {'fiware-service': "iota", "fiware-servicepath": "/"}
                 r = requests.get(
@@ -572,5 +579,4 @@ class Viewer(SystemInfo):
             for d in os.listdir(self.__PATH__+"/../Data/IoT/"+sg+"/"):
                 if "subscription.json" not in d:
                     tree[sg].append(d)
-
         return tree

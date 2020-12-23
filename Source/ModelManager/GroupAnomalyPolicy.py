@@ -52,4 +52,5 @@ def Default_Nearest_AND(Data, timewidth):
             continue
         if output["anomalyflag"] != True:
             return False
+
     return True

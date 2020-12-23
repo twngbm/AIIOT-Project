@@ -111,11 +111,9 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
         + Data.data.deviceID
         + "/"
     )
-
     if Data.dType == "COMMAND":
         logging.info("{sg}/{device} Receive Command:{action}".format(
             action=Data.data.action, sg=Data.data.service_group, device=Data.data.deviceID))
-
         if Data.data.action == "Sleep":
             if Model.isOnline:
                 Model.Sleep()
@@ -177,7 +175,6 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
         elif Data.data.action == "Wake":
             if Model.isExist and Model.isTrained:
                 wakeFlag = True
-
     if (Data.dType == "DATA" and not Model.isSafeStop) or trainFlag or wakeFlag:
         if Data.dType == "DATA":
             logging.info("{sg}/{device} Receive Data T:{timeidx},V:{value}".format(
@@ -282,6 +279,7 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
             logging.info("{sg}/{device} Model Bootup Done".format(
                 sg=Data.data.service_group, device=Data.data.deviceID))
             return 0
+
         if Model.isSavePeriod:
             Model.Save()
             logging.info("{sg}/{device} Model Save Done".format(
