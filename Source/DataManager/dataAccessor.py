@@ -236,12 +236,32 @@ class Cleaner(SystemInfo):
 
         for d in self.sg_tree[service_group]:
             self.removeIoTSensor(service_group, d)
+        r = requests.get(
+            self.ORION+"/v2/subscriptions/", headers={'fiware-service': "iota", "fiware-servicepath": "/"})
+        all_subscription = json.loads(r.text)
+        for sub in all_subscription:
+            if sub["subject"]["entities"][0]["idPattern"] == service_group:
+                subID = sub["id"]
+                requests.delete(self.ORION+"/v2/subscriptions/"+subID,
+                                headers={'fiware-service': "iota", "fiware-servicepath": "/"})
         shutil.rmtree(__PATH__+"/../Data/IoT/"+service_group)
 
-    def removeSubscription(self, fiware_service, subscriptionID):
-        header = {'fiware-service': fiware_service, 'fiware-servicepath': "/"}
-        requests.delete(self.ORION+"/v2/subscriptions/" +
-                        subscriptionID, headers=header)
+    def removeSubscription(self, service_group, subscriptionID):
+        if len(subscriptionID) == 3:
+            with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "r") as f:
+                try:
+                    subscriptionList = json.load(f)
+                except:
+                    return
+            for sub in subscriptionList:
+                if sub["id"] == subscriptionID:
+                    subscriptionList.remove(sub)
+                    break
+            with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "w") as f:
+                json.dump(subscriptionList, f)
+        else:
+            requests.delete(self.ORION+"/v2/subscriptions/" +
+                            subscriptionID, headers={'fiware-service': "iota", 'fiware-servicepath': "/"})
 
     def removeEntity(self, entityID):
         r = requests.delete(self.ORION+"/v2/entities/" + entityID)
@@ -257,16 +277,15 @@ class Cleaner(SystemInfo):
             iotacfg = json.load(iotafile)["iotagent_setting"]
         for iota_setting in iotacfg:
             IOTA = iota_setting["Iot-Agent-Url"]
-            fiware_service = iota_setting["Service-Group"]
 
             resource = iota_setting["Resource"]
             apikey = iota_setting["apikey"]
 
         header = {'Content-Type': 'application/json'}
-        sql = '{"stmt":"DROP TABLE IF EXISTS mt'+fiware_service+'.etsensor"}'
+        sql = '{"stmt":"DROP TABLE IF EXISTS mtiota.etsensor"}'
         r = requests.get(self.CRATEDB+"/_sql", headers=header, data=sql)
 
-        header = {'fiware-service': fiware_service, 'fiware-servicepath': "/"}
+        header = {'fiware-service': "iota", 'fiware-servicepath': "/"}
         requests.delete(IOTA+"/iot/services/?resource=" +
                         resource+"&apikey="+apikey, headers=header)
         r = requests.get(self.ORION+"/v2/subscriptions", headers=header).json()
@@ -318,11 +337,12 @@ class Creator(SystemInfo):
                 timeWidth = post_data_dict["TimeWidth"]
             except:
                 timeWidth = 60
+            GASID = self.createID(subscriptionList)
             subscriptionList.append(
-                {"Policy": policy, "Timewidth": timeWidth, "Url": url})
+                {"id": GASID, "Policy": policy, "Timewidth": timeWidth, "Url": url, "description": f"Notify {url} when {service_group} occured group anomaly,with policy {policy}."})
             with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "w") as f:
                 json.dump(subscriptionList, f)
-            return 201, {"Status": "Group Subscription Create Success."}
+            return 201, {"id": GASID, "description": f"Notify {url} when {service_group} occured group anomaly,with policy {policy}."}
         else:
             data = {
                 "description": "Notify "+url+" of "+condition+" changes.",
@@ -335,12 +355,14 @@ class Creator(SystemInfo):
             }
             header = {'Content-Type': 'application/json',
                       'fiware-service': "iota", 'fiware-servicepath': "/"}
-            requests.post(self.ORION+"/v2/subscriptions?options=skipInitialNotification",
-                          headers=header, data=json.dumps(data))
-            header.pop('Content-Type')
-            r = requests.get(self.ORION+"/v2/subscriptions", headers=header)
+            r = requests.post(self.ORION+"/v2/subscriptions?options=skipInitialNotification",
+                              headers=header, data=json.dumps(data))
+            return r.status_code, r.text
 
-        return r.status_code, r.text
+    def createID(self, existGAS):
+        if existGAS == []:
+            return "000"
+        return str(int(existGAS[-1]["id"])+1).rjust(3, "0")
 
 
 class Updater(SystemInfo):
@@ -375,13 +397,12 @@ class Viewer(SystemInfo):
         else:
             try:
                 targetEntity = additionEndpiont.split("/")[1]
-                fiware_service = targetEntity.split(":")[1]
             except:
                 return -1
             header = {}
             if targetEntity.find("urn:ngsi-ld") == -1:
                 header = {
-                    'fiware-service': fiware_service, "fiware-servicepath": "/"}
+                    'fiware-service': "iota", "fiware-servicepath": "/"}
             return requests.get(self.ORION+"/v2/entities"+additionEndpiont, headers=header, params=query).text
 
     def listDevices(self, additionEndpiont, query):
@@ -488,7 +509,14 @@ class Viewer(SystemInfo):
                 try:
                     subscriptionList = json.load(f)
                 except:
-                    subscriptionList = {}
+                    subscriptionList = []
+            header = {'fiware-service': "iota", "fiware-servicepath": "/"}
+            r = requests.get(
+                self.ORION+"/v2/subscriptions/", headers=header)
+            all_subscription = json.loads(r.text)
+            for sub in all_subscription:
+                if sub["subject"]["entities"][0]["idPattern"] == service_group:
+                    subscriptionList.append(sub)
             if subEndpoint == "devices":
                 return deviceList
             elif subEndpoint == "subscriptions":
@@ -498,17 +526,44 @@ class Viewer(SystemInfo):
 
     def listSubscriptions(self, additionEndpiont, query):
         try:
-            fiware_service = additionEndpiont.split("/")[1]
+            service_group = additionEndpiont.split("/")[1]
         except:
             return -1
         try:
             subscriptionID = additionEndpiont.split("/")[2]
         except:
             subscriptionID = ""
-
-        header = {'fiware-service': fiware_service, "fiware-servicepath": "/"}
-
-        return requests.get(self.ORION+"/v2/subscriptions/"+subscriptionID, headers=header).text
+        if subscriptionID == "":
+            header = {'fiware-service': "iota", "fiware-servicepath": "/"}
+            r = requests.get(
+                self.ORION+"/v2/subscriptions/", headers=header)
+            all_subscription = json.loads(r.text)
+            subscription = []
+            for sub in all_subscription:
+                if sub["subject"]["entities"][0]["idPattern"] == service_group:
+                    subscription.append(sub)
+            with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "r") as f:
+                try:
+                    subscriptionList = json.load(f)
+                except:
+                    subscriptionList = []
+            return subscription+subscriptionList
+        else:
+            if len(subscriptionID) == 3:
+                with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "r") as f:
+                    try:
+                        subscriptionList = json.load(f)
+                    except:
+                        subscriptionList = []
+                for sub in subscriptionList:
+                    if sub["id"] == subscriptionID:
+                        return [sub]
+                return {"error": "NotFound", "description": "The requested subscription has not been found. Check id"}
+            else:
+                header = {'fiware-service': "iota", "fiware-servicepath": "/"}
+                r = requests.get(
+                    self.ORION+"/v2/subscriptions/"+subscriptionID, headers=header)
+                return r.text
 
     def listServiceGroupAndDevice(self) -> dict:
         tree = {}
