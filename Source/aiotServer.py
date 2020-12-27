@@ -24,7 +24,7 @@ class Handler(BaseHTTPRequestHandler):
         # /entities -> Create Entity (House,Floor,Room,Entity)
         # /service-groups -> Setup Service Group
         # /devices -> Create Sensor Node Entity
-        # /devices/<service_group>/<deviceID>/controls -> Send Command to <service_group>'s <deviceID>
+        # /devices/<service_group>/<deviceName>/controls -> Send Command to <service_group>'s <deviceName>
         # /subscriptions -> Create Subscription
         try:
             content_length = int(self.headers['Content-Length'])
@@ -54,7 +54,7 @@ class Handler(BaseHTTPRequestHandler):
         elif str(self.path) == "/notify":
             try:
                 entity_id = post_data_dict["data"][0]["id"]
-                service_group = entity_id.split(":")[1]
+                service_group = entity_id.split(":")[2]
                 dataType = post_data_dict["data"][0]["count"]["type"]
                 count = post_data_dict["data"][0]["count"]["value"]
                 timestamp = post_data_dict["data"][0]["timestamp"]["value"]
@@ -63,7 +63,7 @@ class Handler(BaseHTTPRequestHandler):
 
             if count == " " and timestamp == "1970-01-01T00:00:00.00Z":
                 return self._set_response(200, "")
-
+            logging.debug(f"Notify:{post_data_dict}")
             Data = {"entity_id": entity_id, "service_group": service_group,
                     "count": count, "timestamp": timestamp, "dataType": dataType}
 
@@ -81,8 +81,8 @@ class Handler(BaseHTTPRequestHandler):
                 resourceSplit = self.path.split("/")
                 try:
                     service_group = resourceSplit[2]
-                    deviceID = resourceSplit[3]
-                    retCode, retText = dataQuerier.commandIssue(service_group, deviceID,
+                    deviceName = resourceSplit[3]
+                    retCode, retText = dataQuerier.commandIssue(service_group, deviceName,
                                                                 post_data_dict, MODEL_PORT)
                 except:
                     retCode = 422
@@ -128,7 +128,6 @@ class Handler(BaseHTTPRequestHandler):
             return self._set_response(404, "{'Status':'Endpoint Not Supported'}")
 
     def do_GET(self):
-
         # /entities -> List house information
 
         # /entities/<entityID> -> Show <entitiyID>'s detail
@@ -139,10 +138,10 @@ class Handler(BaseHTTPRequestHandler):
         # ?type=House,Floor,Room
 
         # /devices/<service_group> -> List Device under <service_group>
-        # /devices/<service_group>/<deviceID> -> Show <deviceID>'s detail
-        # /devices/<service_group>/<deviceID>/model -> Show <deviceID>'s Model State
-        # /devices/<service_group>/<deviceID>/controls -> Show <deviceID>'s supported actionType and action
-        # /devices/<service_group>/<deviceID>/data -> List Sensor Data
+        # /devices/<service_group>/<deviceName> -> Show <deviceName>'s detail
+        # /devices/<service_group>/<deviceName>/model -> Show <deviceName>'s Model State
+        # /devices/<service_group>/<deviceName>/controls -> Show <deviceName>'s supported actionType and action
+        # /devices/<service_group>/<deviceName>/data -> List Sensor Data
         # ?limit=<limit_count>
         # ?attrs=a,b
 
@@ -178,13 +177,13 @@ class Handler(BaseHTTPRequestHandler):
         elif baseEndpoint == "service-groups":
             r = viewer.listServiceGroups(additionalURL, query)
         if r == -1:
-            return self._set_response(400, "{'Status':'Wrong Use of Endpoint'}")
+            return self._set_response(400, '{"Status":"Wrong Use of Endpoint"}')
 
         elif r == -2:
-            return self._set_response(404, "{'Status':'Service Not Found'}")
+            return self._set_response(404, '{"Status":"Service Not Found"}')
 
         elif r == -3:
-            return self._set_response(400, "{'Status':'Missing Necessary Information'}")
+            return self._set_response(400, '{"Status":"Missing Necessary Information"}')
 
         else:
             return self._set_response(200, r)
@@ -224,7 +223,7 @@ class Handler(BaseHTTPRequestHandler):
         # /reset -> Reset
         # /entities/<entityID>
         # /service-groups/<Service-Group> -> Remove <Service-Group> and <Service-Group>'s <Device>
-        # /devices/<service_group>/<deviceID> -> Remove <deviceID>
+        # /devices/<service_group>/<deviceName> -> Remove <deviceName>
         # /subscriptions/<service_group>/<subscriptionID> -> Remove <subscriptionID>
         try:
             Cleaner = dataAccessor.Cleaner(MODEL_PORT)
@@ -353,8 +352,11 @@ def init():
         LOG_LEVEL = logging.ERROR
 
     formatter = '| %(levelname)s | %(asctime)s | %(process)d | %(message)s |'
+    PATH = os.path.dirname(os.path.abspath(__file__))
+    lf = logging.FileHandler(f"{PATH}/aiot.log")
+    ch = logging.StreamHandler()
     logging.basicConfig(level=LOG_LEVEL, format=formatter,
-                        datefmt="%Y-%m-%d %H:%M:%S")
+                        datefmt="%Y-%m-%d %H:%M:%S", handlers=[lf, ch])
 
     logging.critical("AIOT CORE START")
 

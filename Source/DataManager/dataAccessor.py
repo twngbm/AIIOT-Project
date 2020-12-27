@@ -144,7 +144,7 @@ def queFromCratedbBound(entity_id: str, StartTime, EndTime):
     return output
 
 
-def queFromCratedbNewest(entity_id: str, limit: int):
+def queFromCratedbNewest(entity_id: str, limit=10000):
     with open(__PATH__+"/../Data/global-setting.json", "r") as f:
         global_setting = json.load(f)
     __CRATEDB__ = global_setting["system_setting"]["CRATEDB"]
@@ -211,8 +211,8 @@ class Cleaner(SystemInfo):
         viewer = Viewer(self.MODEL_PORT)
         self.sg_tree = viewer.listServiceGroupAndDevice()
 
-    def removeIoTSensor(self, service_group, DeviceID):
-        with open(self.__PATH__+"/../Data/IoT/"+service_group+"/"+DeviceID+"/device.cfg", "r") as iotafile:
+    def removeIoTSensor(self, service_group, DeviceName):
+        with open(self.__PATH__+"/../Data/IoT/"+service_group+"/"+DeviceName+"/device.cfg", "r") as iotafile:
             iota_setting = json.load(iotafile)
             IOTA = iota_setting["iotagent_config"]["Iot-Agent-Url"]
             entityID = iota_setting["entityID"]
@@ -222,15 +222,16 @@ class Cleaner(SystemInfo):
                 "metadata": None
                 }
         dataQuerier.commandIssue(
-            service_group, DeviceID, data, self.MODEL_PORT)
+            service_group, DeviceName, data, self.MODEL_PORT)
         header = {'fiware-service': "iota", 'fiware-servicepath': "/"}
-        requests.delete(IOTA+"/iot/devices/"+DeviceID, headers=header)
+        requests.delete(IOTA+"/iot/devices/"+service_group +
+                        ":"+DeviceName, headers=header)
         requests.delete(self.ORION+"/v2/entities/"+entityID, headers=header)
         header = {'Content-Type': 'application/json'}
         sql = '{"stmt":"DELETE FROM mtiota' + \
             '.etsensor WHERE entity_id = \''+entityID+'\'"}'
         requests.get(self.CRATEDB+"/_sql", headers=header, data=sql)
-        shutil.rmtree(__PATH__+"/../Data/IoT/"+service_group+"/"+DeviceID)
+        shutil.rmtree(__PATH__+"/../Data/IoT/"+service_group+"/"+DeviceName)
 
     def removeServiceGroup(self, service_group):
         for d in self.sg_tree[service_group]:
@@ -277,21 +278,23 @@ class Cleaner(SystemInfo):
             iotacfg = json.load(iotafile)["iotagent_setting"]
         for iota_setting in iotacfg:
             IOTA = iota_setting["Iot-Agent-Url"]
-
             resource = iota_setting["Resource"]
             apikey = iota_setting["apikey"]
+
+            r = requests.delete(IOTA+"/iot/services/?resource=" +
+                                resource+"&apikey="+apikey, headers={'fiware-service': "iota", 'fiware-servicepath': "/"})
+
+    def resetCreadDB(self):
         header = {'Content-Type': 'application/json'}
         sql = '{"stmt":"DROP TABLE IF EXISTS mtiota.etsensor"}'
         r = requests.get(self.CRATEDB+"/_sql", headers=header, data=sql)
 
+    def resetSubscription(self):
         header = {'fiware-service': "iota", 'fiware-servicepath': "/"}
-        requests.delete(IOTA+"/iot/services/?resource=" +
-                        resource+"&apikey="+apikey, headers=header)
         r = requests.get(self.ORION+"/v2/subscriptions", headers=header).json()
         for subscription in r:
             requests.delete(self.ORION+"/v2/subscriptions/" +
                             subscription["id"], headers=header)
-        shutil.rmtree(__PATH__+"/../Data/IoT/")
 
     def reset(self):
         for sg in self.sg_tree:
@@ -300,6 +303,8 @@ class Cleaner(SystemInfo):
         for entity in r.json():
             r = requests.delete(self.ORION+"/v2/entities/"+entity["id"])
         self.resetIoTAgent()
+        self.resetCreadDB()
+        self.resetSubscription()
         shutil.rmtree(__PATH__+"/../Data")
         return 0
 
@@ -413,24 +418,24 @@ class Viewer(SystemInfo):
             return -1
 
         try:
-            deviceID = additionEndpiont.split("/")[2]
+            deviceName = additionEndpiont.split("/")[2]
         except:
-            deviceID = ""
+            deviceName = ""
         try:
             dirlist = os.listdir(
                 self.__PATH__+"/../Data/IoT/"+service_group)
         except:
             return -2
 
-        if deviceID != "":
+        if deviceName != "":
             try:
                 info = additionEndpiont.split("/")[3]
             except:
                 info = "info"
-            if deviceID not in dirlist:
+            if deviceName not in dirlist:
                 return -2
 
-            with open(self.__PATH__+"/../Data/IoT/"+service_group+"/"+deviceID+"/device.cfg", "r") as f:
+            with open(self.__PATH__+"/../Data/IoT/"+service_group+"/"+deviceName+"/device.cfg", "r") as f:
                 iota_setting = json.load(f)
             iota_url = iota_setting["iotagent_config"]["Iot-Agent-Url"]
             header = {'fiware-service': "iota",
@@ -438,7 +443,7 @@ class Viewer(SystemInfo):
             if info == "model":
                 try:
                     dirlist = os.listdir(
-                        self.__PATH__+"/../Data/IoT/"+service_group+"/"+deviceID)
+                        self.__PATH__+"/../Data/IoT/"+service_group+"/"+deviceName)
                 except:
                     return -2
 
@@ -447,8 +452,9 @@ class Viewer(SystemInfo):
                         return json.dumps({"ModelState": i})
 
             elif info == "data":
-                entity_id = requests.get(
-                    iota_url+"/iot/devices/"+deviceID, headers=header).json()["entity_name"]
+                with open(f"{self.__PATH__}/../Data/IoT/{service_group}/{deviceName}/device.cfg", "r") as f:
+                    device_data = json.load(f)
+                entity_id = device_data["entityID"]
                 connection = client.connect(self.CRATEDB)
                 cursor = connection.cursor()
                 try:
@@ -477,20 +483,21 @@ class Viewer(SystemInfo):
             elif info == "controls":
                 try:
                     os.listdir(self.__PATH__+"/../Data/IoT/" +
-                               service_group+"/"+deviceID)
+                               service_group+"/"+deviceName)
                     return json.dumps({"modelControl": ["Reset,Remove,Save,Sleep,Train,Wake"], "sensorControl": []})
 
                 except:
                     return -2
 
             else:
-                return requests.get(iota_url+"/iot/devices/"+deviceID, headers=header).text
+                with open(f"{self.__PATH__}/../Data/IoT/{service_group}/{deviceName}/device.cfg", "r") as f:
+                    return json.dumps(json.load(f))
 
-        elif deviceID == "":
+        elif deviceName == "":
             deviceList = os.listdir(
                 self.__PATH__+"/../Data/IoT/"+service_group)
             deviceList.remove("subscription.json")
-            return deviceList
+            return json.dumps(deviceList)
 
     def listServiceGroups(self, additionEndpiont, query):
         sg = os.listdir(self.__PATH__+"/../Data/IoT/")
@@ -519,13 +526,13 @@ class Viewer(SystemInfo):
                 if sub["subject"]["entities"][0]["idPattern"] == service_group:
                     subscriptionList.append(sub)
             if subEndpoint == "devices":
-                return deviceList
+                return json.dumps(deviceList)
 
             elif subEndpoint == "subscriptions":
-                return subscriptionList
+                return json.dumps(subscriptionList)
 
             else:
-                return {"Device": deviceList, "Subscription": subscriptionList}
+                return json.dumps({"Device": deviceList, "Subscription": subscriptionList})
 
     def listSubscriptions(self, additionEndpiont, query):
         try:
@@ -546,12 +553,15 @@ class Viewer(SystemInfo):
             for sub in all_subscription:
                 if sub["subject"]["entities"][0]["idPattern"] == service_group:
                     subscription.append(sub)
-            with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "r") as f:
-                try:
-                    subscriptionList = json.load(f)
-                except:
-                    subscriptionList = []
-            return subscription+subscriptionList
+            try:
+                with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "r") as f:
+                    try:
+                        subscriptionList = json.load(f)
+                    except:
+                        subscriptionList = []
+            except:
+                return -2
+            return json.dumps(subscription+subscriptionList)
 
         else:
             if len(subscriptionID) == 3:
@@ -564,7 +574,7 @@ class Viewer(SystemInfo):
                     if sub["id"] == subscriptionID:
                         return [sub]
 
-                return {"error": "NotFound", "description": "The requested subscription has not been found. Check id"}
+                return json.dumps({"error": "NotFound", "description": "The requested subscription has not been found. Check id"})
 
             else:
                 header = {'fiware-service': "iota", "fiware-servicepath": "/"}

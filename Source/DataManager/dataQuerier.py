@@ -30,7 +30,7 @@ def commandIssue(service_group, sensorUID, post_data_dict, MODEL_PORT):
 
         entityID = setting["entityID"]
         static_attributes = setting["static_attributes"]
-        data = {"value": action, "device_id": sensorUID, "entity_id": entityID,
+        data = {"value": action, "device_name": sensorUID, "entity_id": entityID,
                 "service_group": service_group, "metadata": metadata}
         dataSend("COMMAND", data, static_attributes, MODEL_PORT)
         return 200, "{'Status':'Command Issue'}"
@@ -44,14 +44,14 @@ def commandIssue(service_group, sensorUID, post_data_dict, MODEL_PORT):
 
 def dataStore(data: dict, MODEL_PORT):
     __PATH__ = os.path.dirname(os.path.abspath(__file__))
-    deviceID = data["entity_id"].split(":")[3]
-    with open(__PATH__+"/../Data/IoT/"+data["service_group"]+"/"+deviceID+"/device.cfg") as f:
+    deviceName = data["entity_id"].split(":")[3]
+    with open(__PATH__+"/../Data/IoT/"+data["service_group"]+"/"+deviceName+"/device.cfg") as f:
         setting = json.load(f)
     __DEVICE_PATH__ = __PATH__+"/../Data/IoT/" + \
-        data["service_group"]+"/"+deviceID
+        data["service_group"]+"/"+deviceName
     static_attributes = setting["static_attributes"]
     checkResult, data = dataPreprocesser.dataPreprocesser(
-        __DEVICE_PATH__, data, deviceID, static_attributes)
+        __DEVICE_PATH__, data, deviceName, static_attributes)
 
     if 2 in checkResult:
         return checkResult
@@ -71,7 +71,7 @@ def dataStore(data: dict, MODEL_PORT):
     elif os.path.isfile(__DEVICE_PATH__+"/preLearning"):
         dataCache(__DEVICE_PATH__, data)
         statusUpdate(__DEVICE_PATH__, data)
-        if dataReady(__DEVICE_PATH__, static_attributes, data["service_group"], deviceID):
+        if dataReady(__DEVICE_PATH__, static_attributes, data["service_group"], deviceName):
             sendStatus = dataSend("DATA", data,
                                   static_attributes, MODEL_PORT)
             if sendStatus != 0:
@@ -111,14 +111,14 @@ def dataCache(__DEVICE_PATH__, data):
         ld.write(str(value+","+str(timestamp)+"\n"))
 
 
-def dataReady(path, static_attributes, iota, deviceID):
+def dataReady(path, static_attributes, iota, deviceName):
     targetTime = float(static_attributes["targetTime"])
     timeResolution = float(static_attributes["timeResolution"])
 
     targetCount = targetTime/timeResolution
     with open(path+"/counter.tmp", "r") as c:
         count = int(c.read())
-    msg = str(iota)+"/"+str(deviceID)+" Data Amount:" + \
+    msg = str(iota)+"/"+str(deviceName)+" Data Amount:" + \
         str(count)+","+str(int((count/targetCount)*100))+"%"
     logging.info(msg)
     if targetCount > count:

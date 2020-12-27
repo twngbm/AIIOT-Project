@@ -14,12 +14,24 @@ with open(__PATH__ + "/../trainoutput.csv", "w+") as opt:
         "timestamp,value,prediction,anomaly_score,anomaly_likelihood,Log_anomaly_likelihood\n")
     opt.close()
 
-with open(__PATH__+"/model_params","r") as md:
-    modelParams=json.load(md)
+with open(__PATH__+"/model_params", "r") as md:
+    modelParams = json.load(md)
 model = ModelFactory.create(modelConfig=modelParams["modelConfig"])
 model.enableInference(modelParams["inferenceArgs"])
 
-anomalyLikelihoodHelper = anomaly_likelihood.AnomalyLikelihood()
+with open(__PATH__+"/../localdata.tmp", "r") as f:
+    l = f.readlines()
+dataAmount = len(l)-3
+if dataAmount <= 0:
+    dataAmount = 288
+
+with open(__PATH__+"/../device.cfg", "r") as f:
+    devicecfg = json.load(f)
+timeResolution = int(devicecfg["static_attributes"]["timeResolution"])
+
+anomalyLikelihoodHelper = anomaly_likelihood.AnomalyLikelihood(
+    learningPeriod=dataAmount, historicWindowSize=int(2592000/timeResolution), reestimationPeriod=50)
+
 shifter = InferenceShifter()
 with open(__PATH__ + "/../localdata.tmp", "r") as filein:
     reader = csv.reader(filein)
@@ -35,9 +47,9 @@ with open(__PATH__ + "/../localdata.tmp", "r") as filein:
         )
 
         result = model.run(modelInput)
-        
+
         result = shifter.shift(result)
-       
+
         timestamp = result.rawInput["c0"]
         value = result.rawInput["c1"]
         prediction = result.inferences['multiStepBestPredictions'][
@@ -52,9 +64,9 @@ with open(__PATH__ + "/../localdata.tmp", "r") as filein:
                      ","+str(anomalyLikelihood)+","+str(Log_anomaly_likelihood)+"\n")
             op.close()
     model.save(__PATH__+"/HTMmodel")
-    with open(__PATH__+"/HTMmodel/anomalyhelper.pkl","w+") as  f:
-        pickle.dump(anomalyLikelihoodHelper,f)
+    with open(__PATH__+"/HTMmodel/anomalyhelper.pkl", "w+") as f:
+        pickle.dump(anomalyLikelihoodHelper, f)
         f.close()
-    with open(__PATH__+"/HTMmodel/shifthelper.pkl","w+") as  f:
-        pickle.dump(shifter,f)
+    with open(__PATH__+"/HTMmodel/shifthelper.pkl", "w+") as f:
+        pickle.dump(shifter, f)
         f.close()

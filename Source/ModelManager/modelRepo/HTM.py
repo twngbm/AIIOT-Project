@@ -1,16 +1,17 @@
-from DataManager import dataAccessor
-import os
-import subprocess
-import json
-import time
-import logging
-import sys
-import inspect
-import struct
-import datetime
-import re
-import shutil
 from pathlib import Path
+import shutil
+import re
+import csv
+import datetime
+import struct
+import inspect
+import sys
+import logging
+import time
+import json
+import subprocess
+import os
+from DataManager import dataAccessor
 current_dir = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
 parent_dir = os.path.dirname(current_dir)
@@ -21,14 +22,14 @@ class model:
     def __init__(self, Data, __GLOBAL_THREADHOLD__):
         self.Data = Data
         self.serviceGroup = self.Data.data.service_group
-        self.deviceID = self.Data.data.deviceID
+        self.deviceName = self.Data.data.deviceName
         self.__GLOBAL_THREADHOLD__ = __GLOBAL_THREADHOLD__
         self.__SENSORDIR__ = (
             os.path.dirname(os.path.abspath(__file__))
             + "/../../Data/IoT/"
             + self.serviceGroup
             + "/"
-            + self.deviceID
+            + self.deviceName
             + "/"
         )
         self.__WORKDIR__ = self.__SENSORDIR__ + "HTM/"
@@ -109,15 +110,15 @@ class model:
             # stderr=subprocess.DEVNULL
         )
         swarmpid = swarm.pid
-        logging.info("{service_group}/{deviceID} HTM Pretrain Start PID {pid}".format(
-            service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=swarmpid))
+        logging.info("{service_group}/{deviceName} HTM Pretrain Start PID {pid}".format(
+            service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName, pid=swarmpid))
         Path(self.__WORKDIR__ +
              "HTM-{pid}.pid".format(pid=swarmpid)).touch()
         while True:
             state = swarm.poll()
             if state != None:
-                logging.info("{service_group}/{deviceID} HTM Pretrain End PID {pid} Exit Code {exitc}".format(
-                    service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=swarmpid, exitc=state))
+                logging.info("{service_group}/{deviceName} HTM Pretrain End PID {pid} Exit Code {exitc}".format(
+                    service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName, pid=swarmpid, exitc=state))
                 os.unlink(self.__WORKDIR__ +
                           "HTM-{pid}.pid".format(pid=swarmpid))
                 break
@@ -128,15 +129,15 @@ class model:
     def Train(self):
         train = subprocess.Popen(["python2.7", self.__WORKDIR__+"train.py"])
         trainpid = train.pid
-        logging.info("{service_group}/{deviceID} HTM Train Start PID {pid}".format(
-            service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=trainpid))
+        logging.info("{service_group}/{deviceName} HTM Train Start PID {pid}".format(
+            service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName, pid=trainpid))
         Path(self.__WORKDIR__ +
              "HTM-{pid}.pid".format(pid=trainpid)).touch()
         while True:
             state = train.poll()
             if state != None:
-                logging.info("{service_group}/{deviceID} HTM Train End PID {pid} Exit Code {exitc}".format(
-                    service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=trainpid, exitc=state))
+                logging.info("{service_group}/{deviceName} HTM Train End PID {pid} Exit Code {exitc}".format(
+                    service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName, pid=trainpid, exitc=state))
                 os.unlink(self.__WORKDIR__ +
                           "HTM-{pid}.pid".format(pid=trainpid))
                 break
@@ -149,6 +150,8 @@ class model:
     def TrainCleanup(self):
         dataAccessor.trainoutputWriteback(self.TrainOutput, self.Data,
                                           self.__GLOBAL_THREADHOLD__)
+        shutil.copyfile(self.__SENSORDIR__+"localdata.tmp",
+                        self.__WORKDIR__+"localdata.tmp")
         os.unlink(self.__SENSORDIR__+"trainoutput.csv")
 
     def Load(self):
@@ -164,15 +167,15 @@ class model:
             modelPID = self.MODELP.pid
             Path(self.__WORKDIR__ +
                  "HTM-{pid}.pid".format(pid=modelPID)).touch()
-            logging.info("{service_group}/{deviceID} HTM Start PID {pid}".format(
-                service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=modelPID))
+            logging.info("{service_group}/{deviceName} HTM Start PID {pid}".format(
+                service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName, pid=modelPID))
             self.MODELP.wait()
-            logging.info("{service_group}/{deviceID} HTM End PID {pid}".format(
-                service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=modelPID))
+            logging.info("{service_group}/{deviceName} HTM End PID {pid}".format(
+                service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName, pid=modelPID))
             os._exit(0)
         else:
-            logging.info("{service_group}/{deviceID} HTM Model Loading Start".format(
-                service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
+            logging.info("{service_group}/{deviceName} HTM Model Loading Start".format(
+                service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName))
             while True:
                 try:
                     reader = os.open(self.__WORKDIR__ +
@@ -183,8 +186,8 @@ class model:
             result = self.__get_message__(reader)
             os.close(reader)
             if result == "ACK":
-                logging.info("{service_group}/{deviceID} HTM Model Loading Done".format(
-                    service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
+                logging.info("{service_group}/{deviceName} HTM Model Loading Done".format(
+                    service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName))
                 self.isOnline = True
             else:
                 raise IOError
@@ -229,8 +232,8 @@ class model:
             elif dataType == "string":
                 currentValue = data["count"]
 
-        logging.info("{service_group}/{deviceID} HTM Pre-Cleanup Start".format(
-            service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
+        logging.info("{service_group}/{deviceName} HTM Pre-Cleanup Start".format(
+            service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName))
         try:
             self.__ReLoopPreUnsavedData__(currentTime, lastRecordedTime)
         except:
@@ -242,8 +245,8 @@ class model:
             timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data, raiseAnomaly=False)
 
         time.sleep(1)
-        logging.info("{service_group}/{deviceID} HTM Post-Cleanup Start".format(
-            service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
+        logging.info("{service_group}/{deviceName} HTM Post-Cleanup Start".format(
+            service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName))
         try:
             self.__CleanupPostUnprocessData__(currentTime)
         except:
@@ -265,8 +268,8 @@ class model:
             except ProcessLookupError:
                 pass
             finally:
-                logging.info("{service_group}/{deviceID} HTM Kill PID {pid}".format(
-                    service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID, pid=pid))
+                logging.info("{service_group}/{deviceName} HTM Kill PID {pid}".format(
+                    service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName, pid=pid))
         Path(self.__WORKDIR__+"modelInactive").touch()
         self.isOnline = False
 
@@ -326,9 +329,77 @@ class model:
         self.isTrained = False
 
     def __anomaly_detector__(self, score, value, threshold, SPATIAL_TOLERANCE=0.05, windowSize=12):
-        if value < 1.5:
-            return True
-        return False
+        if not os.path.isfile(self.__WORKDIR__+"anomalylog.json"):
+            with open(self.__WORKDIR__+"localdata.tmp", "r") as localdata:
+                ld = csv.reader(localdata)
+                header = next(ld)
+                unit = next(ld)
+                next(ld)
+                unit = dict(zip(header, unit))
+                counter = 0
+                windows = []
+                minValue = None
+                MaxValue = None
+                for data in ld:
+                    data = dict(zip(header, data))
+                    value = data["value"]
+                    if unit["value"] == "float":
+                        value = float(value)
+                    elif unit["value"] == "int":
+                        value = int(value)
+                    windows.append(value)
+                    if len(windows) > windowSize:
+                        windows.pop(0)
+                    if minValue == None or value < minValue:
+                        minValue = value
+                    if MaxValue == None or value > MaxValue:
+                        MaxValue = value
+                    counter += 1
+            data = {"Accumulation": windows,
+                    "minValue": minValue, "MaxValue": MaxValue, "counter": counter}
+            with open(self.__WORKDIR__+"anomalylog.json", "w") as al:
+                json.dump(data, al)
+            os.unlink(self.__WORKDIR__+"localdata.tmp")
+        with open(self.__WORKDIR__+"anomalylog.json", "r") as al:
+            data = json.load(al)
+        accumulation = data["Accumulation"]
+        minVal = data["minValue"]
+        maxVal = data["MaxValue"]
+        Probation = data["counter"]
+        spatialAnomaly = False
+        anomaly = False
+        windowAnomaly = False
+        accumulation.append(score)
+        if len(accumulation) > windowSize:
+            accumulation.pop(0)
+        if Probation > 1000:
+            if minVal != maxVal:
+                tolerance = (maxVal - minVal) * SPATIAL_TOLERANCE
+                maxExpected = maxVal + tolerance
+                minExpected = minVal - tolerance
+                if value > maxExpected or value < minExpected:
+                    spatialAnomaly = True
+        if score >= threshold:
+            anomaly = True
+        m = 1
+        c = 2
+        d = 6
+        for s in accumulation:
+            if s >= 0.525:
+                m -= 1
+            if s >= 0.47:
+                c -= 1
+            if s >= 0.298:
+                d -= 1
+        if c <= 0 and m <= 0 and d <= 0 and not anomaly and not spatialAnomaly:
+            accumulation = []
+            windowAnomaly = True
+        Probation += 1
+        data = {"Accumulation": accumulation,
+                "minValue": minVal, "MaxValue": maxVal, "counter": Probation}
+        with open(self.__WORKDIR__+"anomalylog.json", "w") as al:
+            json.dump(data, al)
+        return spatialAnomaly and anomaly and windowAnomaly
 
     def __create_msg__(self, content: bytes) -> bytes:
         return struct.pack("<I", len(content)) + content
@@ -354,15 +425,15 @@ class model:
             if record["anomalyflag"] == None:
                 dataAccessor.resultWriteback(
                     timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data, raiseAnomaly=False)
-        logging.info("{service_group}/{deviceID} HTM Pre-Cleanup Done".format(
-            service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
+        logging.info("{service_group}/{deviceName} HTM Pre-Cleanup Done".format(
+            service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName))
 
     def __CleanupPostUnprocessData__(self, StartTime):
         result = dataAccessor.queFromCratedbBack(
             self.Data.data.entityID, StartTime)
         if result == []:
-            logging.info("{service_group}/{deviceID} HTM Post-Cleanup Done".format(
-                service_group=self.Data.data.service_group, deviceID=self.Data.data.deviceID))
+            logging.info("{service_group}/{deviceName} HTM Post-Cleanup Done".format(
+                service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName))
             return 0
 
         for record in result:

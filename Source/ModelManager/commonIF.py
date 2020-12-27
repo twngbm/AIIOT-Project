@@ -50,7 +50,7 @@ class __DATA__:
         self.timestamp = datetime.datetime.strptime(
             self.__data__["timestamp"], "%Y-%m-%d %H:%M:%S"
         )  # Datetime object
-        self.deviceID = self.__data__["device_id"]
+        self.deviceName = self.__data__["device_name"]
         self.entityID = self.__data__["entity_id"]
         self.service_group = self.__data__["service_group"]
 
@@ -59,7 +59,7 @@ class __COMMAND__:
     def __init__(self, data: dict):
         self.__data__ = data["data"]
         self.action = self.__data__["value"]
-        self.deviceID = self.__data__["device_id"]
+        self.deviceName = self.__data__["device_name"]
         self.entityID = self.__data__["entity_id"]
         self.service_group = self.__data__["service_group"]
         self.metadata = self.__data__["metadata"]
@@ -108,12 +108,12 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
         + "/../Data/IoT/"
         + Data.data.service_group
         + "/"
-        + Data.data.deviceID
+        + Data.data.deviceName
         + "/"
     )
     if Data.dType == "COMMAND":
         logging.info("{sg}/{device} Receive Command:{action}".format(
-            action=Data.data.action, sg=Data.data.service_group, device=Data.data.deviceID))
+            action=Data.data.action, sg=Data.data.service_group, device=Data.data.deviceName))
         if Data.data.action == "Sleep":
             if Model.isOnline:
                 Model.Sleep()
@@ -135,7 +135,7 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 except:
                     pass
             logging.info("{sg}/{device} Romove Done".format(
-                sg=Data.data.service_group, device=Data.data.deviceID))
+                sg=Data.data.service_group, device=Data.data.deviceName))
             return 0
 
         elif Data.data.action == "Reset":
@@ -154,14 +154,14 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 except:
                     pass
             logging.info("{sg}/{device} Reset Done".format(
-                sg=Data.data.service_group, device=Data.data.deviceID))
+                sg=Data.data.service_group, device=Data.data.deviceName))
             return 0
 
         elif Data.data.action == "Save":
             if Model.isOnline:
                 Model.Save()
-            logging.info("{sg}/{device} Save Done".format(
-                sg=Data.data.service_group, device=Data.data.deviceID))
+            logging.info(
+                "{sg}/{device} Save Done".format(sg=Data.data.service_group, device=Data.data.deviceName))
             return 0
 
         elif Data.data.action == "Train":
@@ -178,11 +178,11 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
     if (Data.dType == "DATA" and not Model.isSafeStop) or trainFlag or wakeFlag:
         if Data.dType == "DATA":
             logging.info("{sg}/{device} Receive Data T:{timeidx},V:{value}".format(
-                timeidx=Data.data.timestamp, value=Data.data.value, sg=Data.data.service_group, device=Data.data.deviceID))
+                timeidx=Data.data.timestamp, value=Data.data.value, sg=Data.data.service_group, device=Data.data.deviceName))
 
         if not Model.isExist:
             logging.info("{sg}/{device} Model Prepare Start".format(
-                sg=Data.data.service_group, device=Data.data.deviceID))
+                sg=Data.data.service_group, device=Data.data.deviceName))
             Path(__SENSORDIR__+"inLearning").touch()
             try:
                 os.unlink(__SENSORDIR__+"preLearning")
@@ -195,10 +195,10 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
 
             Model.Prepare()  # Prepare, copy model dependence file to data folder
             logging.info("{sg}/{device} Model Prepare Done".format(
-                sg=Data.data.service_group, device=Data.data.deviceID))
+                sg=Data.data.service_group, device=Data.data.deviceName))
         if not Model.isTrained or Model.isRetrainPeriod:
             logging.info("{sg}/{device} Model Train Start".format(
-                sg=Data.data.service_group, device=Data.data.deviceID))
+                sg=Data.data.service_group, device=Data.data.deviceName))
             Path(__SENSORDIR__+"inLearning").touch()
             try:
                 os.unlink(__SENSORDIR__+"postLearning")
@@ -227,7 +227,7 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
             except:
                 pass
             logging.info("{sg}/{device} Model Train Done".format(
-                sg=Data.data.service_group, device=Data.data.deviceID))
+                sg=Data.data.service_group, device=Data.data.deviceName))
 
             if trainFlag:
                 Path(__SENSORDIR__+"postLearning").touch()
@@ -239,7 +239,7 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
 
         if not Model.isOnline:
             logging.info("{sg}/{device} Model Bootup Start".format(
-                sg=Data.data.service_group, device=Data.data.deviceID))
+                sg=Data.data.service_group, device=Data.data.deviceName))
             Path(__SENSORDIR__+"inLearning").touch()
             try:
                 os.unlink(__SENSORDIR__+"postLearning")
@@ -266,10 +266,10 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
             #  D. Data newer than Current Data, namely data generated during
             #     Model re-Loading
 
-            #CleanupPreUnprocessData(Data,Model,Data.data.timestamp.strftime("%Y-%m-%d %H:%M:%S"))
-            #timestamp,value,prediction,anomaly,metadata = Model.Use(Data.data.value,Data.data.timestamp)
+            # CleanupPreUnprocessData(Data,Model,Data.data.timestamp.strftime("%Y-%m-%d %H:%M:%S"))
+            # timestamp,value,prediction,anomaly,metadata = Model.Use(Data.data.value,Data.data.timestamp)
             # resultWriteback(timestamp,value,prediction,anomaly,metadata,Data)
-            #CleanupPostUnprocessData(Data,Model,Data.data.timestamp.strftime("%Y-%m-%d %H:%M:%S"))
+            # CleanupPostUnprocessData(Data,Model,Data.data.timestamp.strftime("%Y-%m-%d %H:%M:%S"))
             Model.Save()
             try:
                 os.unlink(__SENSORDIR__+"inLearning")
@@ -277,13 +277,13 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                 pass
             Path(__SENSORDIR__+"postLearning").touch()
             logging.info("{sg}/{device} Model Bootup Done".format(
-                sg=Data.data.service_group, device=Data.data.deviceID))
+                sg=Data.data.service_group, device=Data.data.deviceName))
             return 0
 
         if Model.isSavePeriod:
             Model.Save()
             logging.info("{sg}/{device} Model Save Done".format(
-                sg=Data.data.service_group, device=Data.data.deviceID))
+                sg=Data.data.service_group, device=Data.data.deviceName))
         timestamp, value, anomalyScore, anomalyFlag, metadata = Model.Use(
             Data.data.value, Data.data.timestamp)  # Use model to generate real time prediction
         dataAccessor.resultWriteback(

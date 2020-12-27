@@ -16,7 +16,7 @@ class Device():
     def sensorCheck(self, setting):
         sensor_info = setting["sensor_info"]
         must_list = [
-            "deviceID",
+            "deviceName",
             "timeResolution",
             "targetTime",
             "targetModel",
@@ -51,6 +51,9 @@ class Device():
         except:
             return 404, "{'Status':'Initial FIWARE First'}"
 
+        if not os.path.isfile(f"{self.__PATH__}/../Data/iotagent-setting.json"):
+            return 404, "{'Status':'Install Iot Agent First'}"
+
         fiware_service = "iota"
         fiware_servicepath = "/"
         iotagent = Sensor_info["agent_info"]["iotagent"]
@@ -82,17 +85,11 @@ class Device():
         dummy = Sensor_info["sensor_info"]["dummy"]
         unit = Sensor_info["sensor_info"]["unit"]
         data_type = Sensor_info["sensor_info"]["dataType"]
-        for i in range(1000):
-            index = str(i).zfill(4)
-            deviceName = Sensor_info["sensor_info"]["deviceID"]
-            device_id = deviceName+"_"+index
-            if os.path.isdir(self.__PATH__+"/../Data/IoT/"+serviceGroup+"/"+device_id):
-                continue
-            else:
-                break
 
-        entity_name = "urn:"+serviceGroup+":" + \
-            Sensor_info["sensor_info"]["sensorType"]+":"+device_id
+        deviceName = Sensor_info["sensor_info"]["deviceName"]
+
+        sensor_type = Sensor_info["sensor_info"]["sensorType"]
+        entity_name = f"urn:{sensor_type}:{serviceGroup}:{deviceName}"
         entity_type = "Sensor"
         sensor_name = Sensor_info["sensor_info"]["sensorName"]
         field_name = Sensor_info["sensor_info"]["fieldName"]
@@ -146,7 +143,7 @@ class Device():
             static_attributes.append(
                 {"name": "isDummy", "type": "Bool", "value": "False"})
         data = {"devices": [{
-            "device_id":   device_id,
+            "device_id":   serviceGroup+":"+deviceName,
             "entity_name": entity_name,
             "entity_type": entity_type,
             "timezone":    timezone,
@@ -158,21 +155,21 @@ class Device():
         r = requests.post(IOTA+"/iot/devices", headers=header,
                           data=json.dumps(data))
         if r.status_code == 201:
-            os.mkdir(self.__PATH__+"/../Data/IoT/"+serviceGroup+"/"+device_id)
+            os.mkdir(self.__PATH__+"/../Data/IoT/"+serviceGroup+"/"+deviceName)
             static_attributes_output = {}
             for attr in static_attributes:
                 static_attributes_output[attr["name"]] = attr["value"]
-            with open(self.__PATH__+"/../Data/IoT/"+serviceGroup+"/"+device_id+"/device.cfg", "w+") as f:
-                json.dump({"iotagent_config": iota_setting,
+            with open(self.__PATH__+"/../Data/IoT/"+serviceGroup+"/"+deviceName+"/device.cfg", "w+") as f:
+                json.dump({"deviceName": deviceName, "iotagent_config": iota_setting,
                            "static_attributes": static_attributes_output, "entityID": entity_name}, f)
-            with open(self.__PATH__+"/../Data/IoT/"+serviceGroup+"/"+device_id+"/localdata.tmp", "w+") as f:
+            with open(self.__PATH__+"/../Data/IoT/"+serviceGroup+"/"+deviceName+"/localdata.tmp", "w+") as f:
                 f.write("value,timestamp\n"+data_type+",datetime\n ,T\n")
                 f.close()
-            with open(self.__PATH__+"/../Data/IoT/"+serviceGroup+"/"+device_id+"/counter.tmp", "w+") as f:
+            with open(self.__PATH__+"/../Data/IoT/"+serviceGroup+"/"+deviceName+"/counter.tmp", "w+") as f:
                 f.write("0")
                 f.close()
             Path(self.__PATH__+"/../Data/IoT/"+serviceGroup +
-                 "/"+device_id+"/localnewest.tmp").touch()
+                 "/"+deviceName+"/localnewest.tmp").touch()
             Path(self.__PATH__+"/../Data/IoT/"+serviceGroup +
-                 "/"+device_id+"/preLearning").touch()
+                 "/"+deviceName+"/preLearning").touch()
         return r.status_code, r.text
