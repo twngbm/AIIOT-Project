@@ -7,9 +7,7 @@ from datetime import datetime
 from DataManager import dataPreprocesser
 import struct
 from ModelManager import modelEntrance
-
-
-__GLOBAL_THREADHOLD__ = 0.7
+from SystemManager.SysConfig import __GLOBAL_THREADHOLD__
 
 
 def commandIssue(service_group, sensorUID, post_data_dict, MODEL_PORT):

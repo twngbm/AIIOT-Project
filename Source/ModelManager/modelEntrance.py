@@ -35,6 +35,5 @@ def modelPortal(msg, __GLOBAL_THREADHOLD__):
                      ' START---------------')
         commonIF.modelHandler(fulldata, __GLOBAL_THREADHOLD__)
         os._exit(0)
-        print("Here")
     else:
         return 0

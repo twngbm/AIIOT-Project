@@ -21,7 +21,7 @@ model.enableInference(modelParams["inferenceArgs"])
 
 with open(__PATH__+"/../localdata.tmp", "r") as f:
     l = f.readlines()
-dataAmount = len(l)-3
+dataAmount = len(l)-103
 if dataAmount <= 0:
     dataAmount = 288
 

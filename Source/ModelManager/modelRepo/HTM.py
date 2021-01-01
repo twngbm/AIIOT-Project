@@ -220,11 +220,11 @@ class model:
             currentTime = (datetime.timedelta(
                 seconds=data["time_index"]/1000)+datetime.datetime(1970, 1, 1))
             dataType = self.Data.static_attributes.dataType
-            if dataType == "float":
+            if dataType == "Float":
                 currentValue = float(data["count"])
-            elif dataType == "int":
+            elif dataType == "Integer":
                 currentValue = int(data["count"])
-            elif dataType == "bool":
+            elif dataType == "Boolean":
                 currentValue = (
                     True if data["count"] in [
                         "True", "true", "1"] else False
@@ -242,7 +242,7 @@ class model:
         timestamp, value, anomalyScore, anomalyFlag, metadata = self.Use(
             currentValue, currentTime)
         dataAccessor.resultWriteback(
-            timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data, raiseAnomaly=False)
+            timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data)
 
         time.sleep(1)
         logging.info("{service_group}/{deviceName} HTM Post-Cleanup Start".format(
@@ -289,11 +289,11 @@ class model:
         os.unlink(self.__WORKDIR__+pid)
         result = result[1:-1].split(",")
         dataType = self.Data.static_attributes.dataType
-        if dataType == "float":
+        if dataType == "Float":
             predictionValue = float(result[0])
-        elif dataType == "int":
+        elif dataType == "Integer":
             predictionValue = int(result[0])
-        elif dataType == "bool":
+        elif dataType == "Boolean":
             predictionValue = (
                 True if result[0] in ["True", "true", "1"] else False
             )
@@ -329,6 +329,12 @@ class model:
         self.isTrained = False
 
     def __anomaly_detector__(self, score, value, threshold, SPATIAL_TOLERANCE=0.05, windowSize=12):
+        import random
+        i = random.randint(0, 1)
+        if i == 1:
+            return True
+        else:
+            return False
         if not os.path.isfile(self.__WORKDIR__+"anomalylog.json"):
             with open(self.__WORKDIR__+"localdata.tmp", "r") as localdata:
                 ld = csv.reader(localdata)
@@ -337,25 +343,21 @@ class model:
                 next(ld)
                 unit = dict(zip(header, unit))
                 counter = 0
-                windows = []
                 minValue = None
                 MaxValue = None
                 for data in ld:
                     data = dict(zip(header, data))
                     value = data["value"]
-                    if unit["value"] == "float":
+                    if unit["value"] == "Float":
                         value = float(value)
-                    elif unit["value"] == "int":
+                    elif unit["value"] == "Integer":
                         value = int(value)
-                    windows.append(value)
-                    if len(windows) > windowSize:
-                        windows.pop(0)
                     if minValue == None or value < minValue:
                         minValue = value
                     if MaxValue == None or value > MaxValue:
                         MaxValue = value
                     counter += 1
-            data = {"Accumulation": windows,
+            data = {"Accumulation": [],
                     "minValue": minValue, "MaxValue": MaxValue, "counter": counter}
             with open(self.__WORKDIR__+"anomalylog.json", "w") as al:
                 json.dump(data, al)
@@ -379,8 +381,16 @@ class model:
                 minExpected = minVal - tolerance
                 if value > maxExpected or value < minExpected:
                     spatialAnomaly = True
+                    logging.info(
+                        f"{self.Data.data.entityID} Spatial Anomaly Detected")
+        if value > maxVal:
+            maxVal = value
+        if value < minVal:
+            minVal = value
+
         if score >= threshold:
             anomaly = True
+            logging.info(f"{self.Data.data.entityID} Cut off Anomaly Detected")
         m = 1
         c = 2
         d = 6
@@ -394,12 +404,13 @@ class model:
         if c <= 0 and m <= 0 and d <= 0 and not anomaly and not spatialAnomaly:
             accumulation = []
             windowAnomaly = True
+            logging.info(f"{self.Data.data.entityID} Windows Anomaly Detected")
         Probation += 1
         data = {"Accumulation": accumulation,
                 "minValue": minVal, "MaxValue": maxVal, "counter": Probation}
         with open(self.__WORKDIR__+"anomalylog.json", "w") as al:
             json.dump(data, al)
-        return spatialAnomaly and anomaly and windowAnomaly
+        return spatialAnomaly or anomaly or windowAnomaly
 
     def __create_msg__(self, content: bytes) -> bytes:
         return struct.pack("<I", len(content)) + content
@@ -424,7 +435,7 @@ class model:
                 INvalue, INtimestamp)
             if record["anomalyflag"] == None:
                 dataAccessor.resultWriteback(
-                    timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data, raiseAnomaly=False)
+                    timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data)
         logging.info("{service_group}/{deviceName} HTM Pre-Cleanup Done".format(
             service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName))
 
@@ -446,5 +457,5 @@ class model:
             timestamp, value, anomalyScore, anomalyFlag, metadata = self.Use(
                 INvalue, INtimestamp)
             dataAccessor.resultWriteback(
-                timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data, raiseAnomaly=False)
+                timestamp, value, anomalyScore, anomalyFlag, metadata, self.Data)
         return self.__CleanupPostUnprocessData__(INtimestamp)

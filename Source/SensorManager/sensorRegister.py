@@ -84,7 +84,7 @@ class Device():
 
         dummy = Sensor_info["sensor_info"]["dummy"]
         unit = Sensor_info["sensor_info"]["unit"]
-        data_type = Sensor_info["sensor_info"]["dataType"]
+        data_type = Sensor_info["sensor_info"]["dataType"].lower().capitalize()
 
         deviceName = Sensor_info["sensor_info"]["deviceName"]
 
@@ -125,23 +125,23 @@ class Device():
                              {"name": "sensorType", "type": "Text",
                                  "value": sensor_type},
                              {"name": "unit", "type": "Text", "value": unit},
-                             {"name": "predictionValue",
+                             {"name": "PredictionValue",
                               "type": data_type, "value": "None"},
-                             {"name": "anomalyScore",
+                             {"name": "RawAnomalyScore",
                                  "type": "Float", "value": "None"},
-                             {"name": "anomalyLikehood",
+                             {"name": "RawAnomalyLikehood",
                               "type": "Float", "value": "None"},
-                             {"name": "LogAnomalyLikehood",
+                             {"name": "AnomalyScore",
                               "type": "Float", "value": "None"},
                              {"name": "dataType",
                               "type": "Text", "value": data_type},
-                             {"name": "Anomaly", "type": "Bool", "value": "False"}]
+                             {"name": "AnomalyFlag", "type": "Boolean", "value": "False"}]
         if dummy:
             static_attributes.append(
-                {"name": "isDummy", "type": "Bool", "value": "True"})
+                {"name": "isDummy", "type": "Boolean", "value": "True"})
         else:
             static_attributes.append(
-                {"name": "isDummy", "type": "Bool", "value": "False"})
+                {"name": "isDummy", "type": "Boolean", "value": "False"})
         data = {"devices": [{
             "device_id":   serviceGroup+":"+deviceName,
             "entity_name": entity_name,

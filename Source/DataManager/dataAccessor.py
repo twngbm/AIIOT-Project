@@ -9,6 +9,7 @@ import requests
 import shutil
 from DataManager import dataQuerier
 from ModelManager import GroupAnomalyPolicy
+from SystemManager.SysConfig import TIMEWIDTH
 __PATH__ = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -40,26 +41,20 @@ def trainoutputWriteback(path: str, Data, __GLOBAL_THREADHOLD__: float):
             )
 
 
-def resultWriteback(timestamp: datetime, value, anomalyScore: float, anomalyFlag: bool, metadata: dict, Data, raiseAnomaly=False):
-    rawanomalyScore = metadata["rawanomalyScore"] if "rawanomalyScore" in metadata else None
-    rawanomalyLikelihood = metadata["rawanomalyLikelihood"] if "rawanomalyLikelihood" in metadata else None
-    predictionValue = metadata["predictionValue"] if "predictionValue" in metadata else None
-    if anomalyFlag and raiseAnomaly:
-        header = {'Content-Type': 'application/json',
-                  'fiware-service': 'iota', "fiware-servicepath": "/"}
-        data = {"Anomaly": {"type": "Bool", "value": True}}
-        with open(__PATH__+"/../Data/global-setting.json", "r") as f:
-            setting = json.load(f)
-            ORION = setting["system_setting"]["ORION"]
-        requests.patch(ORION+"/v2/entities/"+Data.data.entityID+"/attrs",
-                       headers=header, data=json.dumps(data))
+def resultWriteback(timestamp: datetime, value, anomalyScore: float, anomalyFlag: bool, metadata: dict, Data):
+    rawanomalyScore = str(
+        metadata["rawanomalyScore"]) if "rawanomalyScore" in metadata else None
+    rawanomalyLikelihood = str(
+        metadata["rawanomalyLikelihood"]) if "rawanomalyLikelihood" in metadata else None
+    predictionValue = str(
+        metadata["predictionValue"]) if "predictionValue" in metadata else None
     writeToCratedb(
         Data.data.service_group,
         Data.data.entityID,
         timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-        str(predictionValue),
-        str(rawanomalyScore),
-        str(rawanomalyLikelihood),
+        predictionValue,
+        rawanomalyScore,
+        rawanomalyLikelihood,
         str(anomalyScore),
         str(anomalyFlag)
     )
@@ -76,7 +71,6 @@ def writeToCratedb(
     anomalyFlag: str
 ):
     with open(__PATH__+"/../Data/global-setting.json", "r") as f:
-
         global_setting = json.load(f)
     __CRATEDB__ = global_setting["system_setting"]["CRATEDB"]
     connection = client.connect(__CRATEDB__)
@@ -162,6 +156,28 @@ def queFromCratedbNewest(entity_id: str, limit=10000):
     return output[::-1]
 
 
+def raiseAnomaly(entityID, AnomalyFlag, AnomalyScore, metadata):
+    rawanomalyScore = str(
+        metadata["rawanomalyScore"]) if "rawanomalyScore" in metadata else None
+    rawanomalyLikelihood = str(
+        metadata["rawanomalyLikelihood"]) if "rawanomalyLikelihood" in metadata else None
+    predictionValue = str(
+        metadata["predictionValue"]) if "predictionValue" in metadata else None
+    data = {"AnomalyFlag": {"type": "Boolean", "value": AnomalyFlag},
+            "AnomalyScore": {"type": "Float", "value": AnomalyScore},
+            "PredictionValue": {"type": "Float", "value": predictionValue},
+            "RawAnomalyLikehood": {"type": "Float", "value": rawanomalyLikelihood},
+            "RawAnomalyScore": {"type": "Float", "value": rawanomalyScore}
+            }
+    with open(__PATH__+"/../Data/global-setting.json", "r") as f:
+        setting = json.load(f)
+    ORION = setting["system_setting"]["ORION"]
+    # Patch to Fiware Content Broker to make use of it's subscriptions mechanism.
+    requests.patch(ORION+"/v2/entities/"+entityID+"/attrs",
+                   headers={'Content-Type': 'application/json',
+                            'fiware-service': 'iota', "fiware-servicepath": "/"}, data=json.dumps(data))
+
+
 def groupAnomaly(Data):
     sg = Data.data.service_group
     timestamp = Data.data.timestamp
@@ -175,6 +191,7 @@ def groupAnomaly(Data):
         policy = gsp["Policy"]
         timewidth = gsp["Timewidth"]
         url = gsp["Url"]
+        gspID = gsp["id"]
         gap = getattr(GroupAnomalyPolicy, policy)
         try:
             gap = getattr(GroupAnomalyPolicy, policy)
@@ -184,8 +201,11 @@ def groupAnomaly(Data):
         groupAnomaly = gap(Data, timewidth)
         if groupAnomaly:
             header = {"Content-Type": "application/json"}
-            timestr = timestamp.strftime("%Y-%m-%d %H:%M:%S")
-            data = {"Status": f"Group {sg} occured anomaly, at time {timestr}"}
+            timestr = timestamp.strftime("%Y-%m-%dT%H:%M:%S.00Z")
+            data = {"subscriptionId": gspID,
+                    "Service Group": sg, "timestamp": timestr}
+            logging.info(json.dumps(
+                {"Status": "Group Anomlay Warning", "Data": data}))
             requests.post(url, headers=header, data=json.dumps(data))
     return
 
@@ -228,8 +248,7 @@ class Cleaner(SystemInfo):
                         ":"+DeviceName, headers=header)
         requests.delete(self.ORION+"/v2/entities/"+entityID, headers=header)
         header = {'Content-Type': 'application/json'}
-        sql = '{"stmt":"DELETE FROM mtiota' + \
-            '.etsensor WHERE entity_id = \''+entityID+'\'"}'
+        sql = '{"stmt":"DELETE FROM mtiota.etsensor WHERE entity_id = \''+entityID+'\'"}'
         requests.get(self.CRATEDB+"/_sql", headers=header, data=sql)
         shutil.rmtree(__PATH__+"/../Data/IoT/"+service_group+"/"+DeviceName)
 
@@ -322,8 +341,11 @@ class Creator(SystemInfo):
         try:
             condition = post_data_dict["Condition"]
         except:
-            condition = "Anomaly"
-        if condition == "GroupAnlmaly":
+            condition = "AnomalyFlag"
+        finally:
+            condition = "AnomalyFlag" if condition == "Anomaly" else condition
+        expression = post_data_dict["Expression"] if "Expression" in post_data_dict else None
+        if condition == "GroupAnomaly":
             with open(self.__PATH__+"/../Data/IoT/"+service_group+"/subscription.json", "r") as f:
                 try:
                     subscriptionList = json.load(f)
@@ -336,7 +358,7 @@ class Creator(SystemInfo):
             try:
                 timeWidth = post_data_dict["TimeWidth"]
             except:
-                timeWidth = 60
+                timeWidth = TIMEWIDTH
             GASID = self.createID(subscriptionList)
             subscriptionList.append(
                 {"id": GASID, "Policy": policy, "Timewidth": timeWidth, "Url": url, "description": f"Notify {url} when {service_group} occured group anomaly,with policy {policy}."})
@@ -354,6 +376,11 @@ class Creator(SystemInfo):
                 "notification": {"http": {"url": url},
                                  "attrsFormat": "keyValues"}
             }
+            if expression != None:
+                rel = expression["Relational"]
+                val = expression["Value"]
+                data["subject"]["condition"]["expression"] = {
+                    "q": f"{condition}{rel}{val}"}
             header = {'Content-Type': 'application/json',
                       'fiware-service': "iota", 'fiware-servicepath': "/"}
             r = requests.post(self.ORION+"/v2/subscriptions?options=skipInitialNotification",

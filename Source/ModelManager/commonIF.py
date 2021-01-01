@@ -35,17 +35,17 @@ class __DATA__:
     def __init__(self, data: dict):
         self.__data__ = data["data"]
         self.dataType = self.__data__["dataType"]
-        if self.dataType == "float":
+        if self.dataType == "Float":
             self.value = float(self.__data__["value"])
-        elif self.dataType == "int":
+        elif self.dataType == "Integer":
             self.value = int(self.__data__["value"])
-        elif self.dataType == "bool":
+        elif self.dataType == "Boolean":
             self.value = (
                 True if self.__data__["value"] in [
                     "True", "true", "1"] else False
             )
-        elif self.dataType == "string":
-            self.value = self.__data__["value"]
+        else:
+            self.value = str(self.__data__["value"])
 
         self.timestamp = datetime.datetime.strptime(
             self.__data__["timestamp"], "%Y-%m-%d %H:%M:%S"
@@ -287,7 +287,9 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
         timestamp, value, anomalyScore, anomalyFlag, metadata = Model.Use(
             Data.data.value, Data.data.timestamp)  # Use model to generate real time prediction
         dataAccessor.resultWriteback(
-            timestamp, value, anomalyScore, anomalyFlag, metadata, Data, raiseAnomaly=True)
+            timestamp, value, anomalyScore, anomalyFlag, metadata, Data)
+        dataAccessor.raiseAnomaly(
+            Data.data.entityID, anomalyFlag, anomalyScore, metadata)
         if anomalyFlag:
             logging.warning("Anomaly Detection at Service Group:{sg} EntityId:{entityID} at Time:{timestamp}".format(
                 sg=Data.data.service_group, entityID=Data.data.entityID, timestamp=timestamp))

@@ -18,7 +18,6 @@ def dataClean(path: str, value: str, timestamp: str, dataType: str):
 
 
 def elaryCheck(path: str, value: str, dataformat: str, timestamp: object, static_attributes: dict):
-    # __LOCALDATA__=path+"/localdata.tmp"
     __COUNTER__ = path+"/counter.tmp"
     __LOCALNEWEST__ = path+"/localnewest.tmp"
     with open(__LOCALNEWEST__, "r") as ln:

@@ -6,17 +6,12 @@ import logging
 import socket
 import SystemManager
 from SystemManager import initFiware, initIotagent, serviceGroup
+from SystemManager.SysConfig import PORT, TIMEZONE, MODEL_PORT
 from SensorManager import sensorRegister, sensorManager
 from DataManager import dataQuerier, dataAccessor
 import requests
 import time
 import signal
-
-
-PORT = 9250
-TIMEZONE = +8
-MODEL_PORT = 5000
-TIMEZONE = "Asia/Taipei"
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -121,7 +116,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._set_response(400, "{'Status':'Wrong Format'}")
 
         elif self.path == "/test":
-            print(post_data_dict)
+            logging.critical(
+                f"{self.address_string()}:POST on /test with message:\n {post_data_dict}")
             return self._set_response(200, "{''}")
 
         else:
