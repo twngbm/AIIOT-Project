@@ -205,7 +205,7 @@ def groupAnomaly(Data):
             data = {"subscriptionId": gspID,
                     "Service Group": sg, "timestamp": timestr}
             logging.info(json.dumps(
-                {"Status": "Group Anomlay Warning", "Data": data}))
+                {"Status": "Group Anomaly Warning", "Data": data}))
             requests.post(url, headers=header, data=json.dumps(data))
     return
 

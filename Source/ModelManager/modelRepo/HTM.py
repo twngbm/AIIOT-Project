@@ -234,10 +234,8 @@ class model:
 
         logging.info("{service_group}/{deviceName} HTM Pre-Cleanup Start".format(
             service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName))
-        try:
-            self.__ReLoopPreUnsavedData__(currentTime, lastRecordedTime)
-        except:
-            pass
+        self.__ReLoopPreUnsavedData__(currentTime, lastRecordedTime)
+
         time.sleep(1)
         timestamp, value, anomalyScore, anomalyFlag, metadata = self.Use(
             currentValue, currentTime)
@@ -247,10 +245,9 @@ class model:
         time.sleep(1)
         logging.info("{service_group}/{deviceName} HTM Post-Cleanup Start".format(
             service_group=self.Data.data.service_group, deviceName=self.Data.data.deviceName))
-        try:
-            self.__CleanupPostUnprocessData__(currentTime)
-        except:
-            pass
+
+        self.__CleanupPostUnprocessData__(currentTime)
+
         os.unlink(self.__WORKDIR__ +
                   "HTM-{pid}.pid".format(pid=recoverypid))
 
@@ -329,12 +326,6 @@ class model:
         self.isTrained = False
 
     def __anomaly_detector__(self, score, value, threshold, SPATIAL_TOLERANCE=0.05, windowSize=12):
-        import random
-        i = random.randint(0, 1)
-        if i == 1:
-            return True
-        else:
-            return False
         if not os.path.isfile(self.__WORKDIR__+"anomalylog.json"):
             with open(self.__WORKDIR__+"localdata.tmp", "r") as localdata:
                 ld = csv.reader(localdata)
@@ -427,7 +418,7 @@ class model:
             self.Data.data.entityID, StartTime, EndTime)
         for record in result:
             time.sleep(1)
-            INvalue = record["count"]
+            INvalue = float(record["count"])
             timestampint = record["timestamp"]
             INtimestamp = (datetime.timedelta(
                 seconds=timestampint/1000)+datetime.datetime(1970, 1, 1))
@@ -450,7 +441,7 @@ class model:
         for record in result:
 
             time.sleep(1)
-            INvalue = record["count"]
+            INvalue = float(record["count"])
             timestampint = record["timestamp"]
             INtimestamp = (datetime.timedelta(
                 seconds=timestampint/1000)+datetime.datetime(1970, 1, 1))

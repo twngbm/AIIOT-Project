@@ -235,9 +235,9 @@ def modelHandler(Data: SensorData, __GLOBAL_THREADHOLD__: float):
                     os.unlink(__SENSORDIR__+"inLearning")
                 except:
                     pass
-                return 0
+                wakeFlag = True
 
-        if not Model.isOnline:
+        if not Model.isOnline or wakeFlag:
             logging.info("{sg}/{device} Model Bootup Start".format(
                 sg=Data.data.service_group, device=Data.data.deviceName))
             Path(__SENSORDIR__+"inLearning").touch()
