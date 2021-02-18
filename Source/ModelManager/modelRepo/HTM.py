@@ -23,7 +23,10 @@ class model:
         self.Data = Data
         self.serviceGroup = self.Data.data.service_group
         self.deviceName = self.Data.data.deviceName
-        self.__GLOBAL_THREADHOLD__ = __GLOBAL_THREADHOLD__
+        try:
+            self.__GLOBAL_THREADHOLD__ = __GLOBAL_THREADHOLD__
+        except:
+            self.__GLOBAL_THREADHOLD__ = 0.5421876907348634
         self.__SENSORDIR__ = (
             os.path.dirname(os.path.abspath(__file__))
             + "/../../Data/IoT/"
@@ -382,15 +385,15 @@ class model:
         if score >= threshold:
             anomaly = True
             logging.info(f"{self.Data.data.entityID} Cut off Anomaly Detected")
-        m = 1
-        c = 2
-        d = 6
+        m = 2
+        c = 3
+        d = 5
         for s in accumulation:
-            if s >= 0.525:
+            if s >= 0.515:
                 m -= 1
-            if s >= 0.47:
+            if s >= 0.48:
                 c -= 1
-            if s >= 0.298:
+            if s >= 0.288:
                 d -= 1
         if c <= 0 and m <= 0 and d <= 0 and not anomaly and not spatialAnomaly:
             accumulation = []
