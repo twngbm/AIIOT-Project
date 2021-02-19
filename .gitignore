@@ -1,14 +1,11 @@
-Dataset/
 .ipynb_checkpoints/
 jupyter_notebook_config.py
 test/
 .vscode
 __pycache__/
 *.pyc
-*.ipynb
 todo
 Data/
 test.py
-Images/
 aiot.log
 nab_test/

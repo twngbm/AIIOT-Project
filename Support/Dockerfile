@@ -9,13 +9,11 @@ RUN mkdir /AIOT-CORE && \
     python3.8 -m pip install requests crate --no-cache-dir && \
     python2.7 -m pip install wheel --no-cache-dir && \
     python2.7 -m pip install nupic --no-cache-dir && \
-    python2.7 -m pip install pymysql --upgrade --no-cache-dir && \
     python2.7 -m pip install cryptography --no-cache-dir && \
     python2.7 -m pip uninstall -y wheel && \
     apt remove -y build-essential python-pip python-dev python3-pip && \
     apt autoremove -y && apt autoclean -y && rm -rf /var/lib/apt/lists/*
 COPY Source /AIOT-CORE
-#COPY Support/nupic-default.xml /usr/local/lib/python2.7/dist-packages/nupic/support/
 WORKDIR /AIOT-CORE
 ENV USER=root
 EXPOSE 9250

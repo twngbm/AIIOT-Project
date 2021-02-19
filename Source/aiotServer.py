@@ -56,7 +56,7 @@ class Handler(BaseHTTPRequestHandler):
             except:
                 return self._set_response(404, "")
 
-            if count == None and timestamp == "1970-01-01T00:00:00.00Z":
+            if timestamp == "1970-01-01T00:00:00.00Z":
                 return self._set_response(200, "")
             logging.debug(f"Notify:{post_data_dict}")
             Data = {"entity_id": entity_id, "service_group": service_group,
