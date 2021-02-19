@@ -33,7 +33,7 @@ IOTA_JSON_SPORT=7897
 
 echo -e "\n${RED}Install Docker Engine.\n${NC}"
 
-sudo apt update && sudo apt upgrade && sudo apt install -y docker docker.io git curl
+sudo apt install -y docker docker.io
 sudo sysctl -w vm.max_map_count=262144
 
 echo -e "\n${RED}Create Docker Network and Volume.\n${NC}"
