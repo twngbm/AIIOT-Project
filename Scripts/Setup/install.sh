@@ -72,6 +72,6 @@ sudo docker build -t $AIOT_CORE_IMAGE -f ../../Support/Dockerfile ../../.
 echo -e "\n${RED}Start AIOT-CORE.\n${NC}"
 
 sudo docker run --name $AIOT_CORE --network=$NETWORK -p $AIOT_CORE_PORT:9250 --env "LOG=$LOG_LEVEL" --detach aiot-core
-
-echo -e "\n${BLUE}Attach to AIOT-CORE log output, press ctrl-C to detach.\n${NC}"
+echo -e "\n${YELLOW}All Install Done.\n${NC}"
+echo -e "\n${BLUE}Attach to AIOT-CORE log output, press ctrl-C to detach safily.\n${NC}"
 sudo docker logs -f $AIOT_CORE

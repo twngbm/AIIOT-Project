@@ -29,11 +29,11 @@ This study aims to design and implement a system capable of managing the devices
     $ ./install.sh
     ```
 
-* Run Demo **Sequentially**(Require Jupyter Notebook)
+* Run Demo Scripts **Sequentially**(Require Jupyter Notebook)
     1. Run [Scripts/Demo/1.Setup_Env](./Scripts/Demo/1.Setup_Env.ipynb), for demo IoT environment setup.
-    2. Run [Scripts/Demo/2.Pseudo_Data_Input](./Scrpits/Demo/2.Pseudo_Data_Input.ipynb) for simulate sensor sensing envoronment, and transfer data into AIOT-CORE, and detecting anomaly.
-    3. After all data in Step 2. ran out (it may take from hours to days), Run [Scripts/Demo/3.Plot](./Scripts/Demo/3.Plot.ipynb) to get graphical result.
-
+    2. Run [Scripts/Demo/2.Pseudo_Data_Input](./Scripts/Demo/2.Pseudo_Data_Input.ipynb) for simulate sensor sensing envoronment, and transfer data into AIOT-CORE, and detecting anomaly.
+    3. After all data in Step 2. ran out (it may take from hours to days), Run [Scripts/Demo/3.Plot](./Scripts/Demo/3.Plot.ipynb) to get graphical result. 
+    ![](./Document/Images/realAWSCloudwatch_ec2_cpu_utilization_5f5533.csv.png)
 
 * Uninstall (Require Root Privilege)
 
